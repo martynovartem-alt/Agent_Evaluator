@@ -1,55 +1,64 @@
 """
-The support agent under test. Produces a trace per case:
+The support agent under test (Alfa-Bank transaction consultant). Produces a trace per case:
     {case_id, answer, tool_calls[{name,args,result}], chunks[{doc_id,text}]}
 
 Two implementations behind one run_agent() dispatcher:
-- run_llm_agent:     real Claude agent (Anthropic API, tool-use loop). Production path.
-- run_offline_agent: deterministic rule-based baseline that drives the SAME tool layer.
-                     Lets the whole pipeline run end-to-end with no API key (CI, local dev).
+- run_llm_agent:     real Claude agent (Anthropic API, tool-use loop). System prompt is
+                     prompts/agent.md (derived from agent_prompt_v2.md). Production path.
+- run_offline_agent: deterministic baseline that drives the SAME tool layer, so the whole
+                     pipeline runs end-to-end with no API key.
 
-Both call the real tools in tools.py. Trace mapping (fixed schema in CLAUDE.md):
-- get_transactions (MCP tool) calls  -> tool_calls[]
-- FAQ retrieval (search_faq) results -> chunks[]
+Trace mapping (matches the architecture diagram: RAW MCP data + Chunks -> judges):
+- MCPClear (history tool) calls        -> tool_calls[]
+- getInstruction (grounding) results   -> chunks[{doc_id: topic_key, text}]
 
-Mode is chosen by AGENT_MODE=auto|llm|offline (default auto: LLM iff an API key and
-the anthropic SDK are both available, else offline). Model via AGENT_MODEL.
+Mode via AGENT_MODE=auto|llm|offline (default auto). Model via AGENT_MODEL.
 """
 import json
 import os
+from datetime import date, timedelta
+from pathlib import Path
 
-from tools import get_transactions, retrieve_faq
+from tools import get_instruction, mcp_clear, rubles
 
 MODEL = os.getenv("AGENT_MODEL", "claude-opus-4-8")
 MAX_TOOL_ITERS = 6
-
-SYSTEM_PROMPT = (
-    "You are a customer support agent. Answer the user's question concisely, using ONLY "
-    "information returned by your tools — never invent account details.\n"
-    "- get_transactions: look up the current user's transactions.\n"
-    "- search_faq: search the help center for policy/how-to answers.\n"
-    "The current user's id is {user_id}. Call the tools you need, then give a direct answer."
-)
+DEFAULT_DATE = "2026-07-20"
+_PROMPT = (Path(__file__).parent / "prompts" / "agent.md").read_text()
 
 TOOLS = [
     {
-        "name": "get_transactions",
-        "description": "Look up a user's transaction history.",
+        "name": "MCPClear",
+        "description": "Look up the client's transaction history for a date range.",
         "input_schema": {
             "type": "object",
-            "properties": {"user_id": {"type": "string", "description": "The user's id"}},
-            "required": ["user_id"],
+            "properties": {
+                "fromDate": {"type": "string", "description": "Start date yyyy-MM-dd (inclusive)"},
+                "toDate": {"type": "string", "description": "End date yyyy-MM-dd (exclusive)"},
+                "operationAmount": {"type": "integer", "description": "Whole-ruble amount filter (optional)"},
+            },
+            "required": ["fromDate", "toDate"],
         },
     },
     {
-        "name": "search_faq",
-        "description": "Search the help center FAQ for an answer to a support question.",
+        "name": "getInstruction",
+        "description": "Fetch verified explanations for topic keys (alfaSmart, alfaCheck, ...).",
         "input_schema": {
             "type": "object",
-            "properties": {"query": {"type": "string", "description": "The support question"}},
-            "required": ["query"],
+            "properties": {
+                "instructionName": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["instructionName"],
         },
     },
 ]
+
+
+def format_rub(amount: dict) -> str:
+    r = rubles(amount)
+    if r == int(r):
+        return f"{int(r):,}".replace(",", " ")
+    return f"{r:,.2f}".replace(",", " ").replace(".", ",")
 
 
 def _anthropic_available() -> bool:
@@ -65,7 +74,10 @@ def run_llm_agent(case: dict) -> dict:
     import anthropic
 
     client = anthropic.Anthropic()
-    system = SYSTEM_PROMPT.format(user_id=case.get("fixture_user", ""))
+    system = _PROMPT.format(
+        current_date=case.get("current_date", DEFAULT_DATE),
+        user_id=case.get("fixture_user", ""),
+    )
     messages = [{"role": "user", "content": case["query"]}]
 
     tool_calls: list[dict] = []
@@ -91,13 +103,18 @@ def run_llm_agent(case: dict) -> dict:
         for block in response.content:
             if block.type != "tool_use":
                 continue
-            if block.name == "get_transactions":
-                result = {"transactions": get_transactions(block.input.get("user_id", ""))}
+            if block.name == "MCPClear":
+                result = mcp_clear(
+                    case.get("fixture_user", ""),
+                    block.input["fromDate"],
+                    block.input["toDate"],
+                    block.input.get("operationAmount"),
+                )
                 tool_calls.append({"name": block.name, "args": dict(block.input), "result": result})
-            elif block.name == "search_faq":
-                hits = retrieve_faq(block.input.get("query", ""))
-                chunks.extend(hits)
-                result = {"chunks": hits}
+            elif block.name == "getInstruction":
+                instr = get_instruction(block.input.get("instructionName", []))
+                chunks.extend({"doc_id": k, "text": v} for k, v in instr.items())
+                result = instr
             else:
                 result = {"error": f"unknown tool {block.name}"}
             tool_results.append({
@@ -111,33 +128,40 @@ def run_llm_agent(case: dict) -> dict:
 
 
 def run_offline_agent(case: dict) -> dict:
-    """Deterministic baseline: wires the real tools by the case's routing hint.
+    """Deterministic baseline: wires the real tools by the case's routing hints.
 
-    Not a stand-in for the LLM's judgment — it trusts `needs_transactions` rather than
-    classifying intent — but it exercises the full tool + trace + eval path so the
-    harness is verifiable without an API key.
+    Trusts `needs_history` / `expected_instruction` rather than classifying intent, but
+    exercises the full tool + trace + eval path so the harness is verifiable with no API key.
     """
-    chunks = retrieve_faq(case["query"])
     tool_calls: list[dict] = []
-    answer = None
+    chunks: list[dict] = []
+    ops: list[dict] = []
 
-    if case.get("needs_transactions"):
-        user_id = case.get("fixture_user", "")
-        txns = get_transactions(user_id)
+    if case.get("needs_history"):
+        cur = date.fromisoformat(case.get("current_date", DEFAULT_DATE))
+        from_date, to_date = (cur - timedelta(days=85)).isoformat(), (cur + timedelta(days=1)).isoformat()
+        result = mcp_clear(case.get("fixture_user", ""), from_date, to_date)
         tool_calls.append({
-            "name": "get_transactions",
-            "args": {"user_id": user_id},
-            "result": {"transactions": txns},
+            "name": "MCPClear",
+            "args": {"fromDate": from_date, "toDate": to_date},
+            "result": result,
         })
-        if txns:
-            latest = max(txns, key=lambda t: t["date"])
-            answer = (
-                f"Your most recent transaction was a payment of ${latest['amount']} "
-                f"to {latest['merchant']} on {latest['date']}."
-            )
+        ops = result["operations"]
 
-    if answer is None:
-        answer = chunks[0]["text"] if chunks else "I'm sorry, I couldn't find an answer to that."
+    if case.get("expected_instruction"):
+        instr = get_instruction([case["expected_instruction"]])
+        chunks = [{"doc_id": k, "text": v} for k, v in instr.items()]
+
+    if ops:
+        planted = case.get("planted_operation_id")
+        op = next((o for o in ops if o["id"] == planted), None) or max(ops, key=lambda o: o["operationDate"])
+        line = f"{op['title']} — {format_rub(op['amount'])} ₽ {op['operationDate']}"
+        extra = f" {chunks[0]['text']}" if chunks else ""
+        answer = f"final_answer: {line}.{extra}"
+    elif chunks:
+        answer = f"final_answer: {chunks[0]['text']}"
+    else:
+        answer = "no_comments: Рад был помочь."
 
     return {"case_id": case["id"], "answer": answer, "tool_calls": tool_calls, "chunks": chunks}
 

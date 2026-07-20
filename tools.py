@@ -1,13 +1,15 @@
 """
-The support agent's two tools, backed by deterministic fixtures.
+The support agent's two tools, backed by deterministic fixtures in the real MCP shape.
 
-- get_transactions: the MCP-served transactions tool. This in-process function is
-  the offline fixture adapter; in production it is served over MCP. The agent-facing
-  contract (name, args, result shape) is what the trace captures, so the transport
-  can be swapped behind this seam without touching the runner or judges.
-- retrieve_faq: FAQ retrieval over a fixture corpus (deterministic token-overlap scorer).
+- MCPClear:      transaction-history lookup. Returns {operations[], summary} where each
+                 operation matches the real MCP JSON (see json_answer_history_operations.md).
+                 The offline fixture adapter; in production this is served over MCP.
+- getInstruction: verified explanations keyed by topic (alfaSmart, alfaCheck, ...).
 
-Both read only from fixtures/ — no network, no live services — so every run is reproducible.
+Both read only from fixtures/ — no network — so every run is reproducible.
+
+Amount encoding: operation `amount` is {value, currency, minorUnits}; rubles = value / minorUnits
+(value is in minor units / kopecks — e.g. the 299 ₽ Альфа-Смарт fee is value 29900, minorUnits 100).
 """
 import json
 from functools import lru_cache
@@ -15,45 +17,46 @@ from pathlib import Path
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
-# Common words stripped before FAQ scoring so overlap reflects content, not glue words.
-_STOPWORDS = {
-    "a", "an", "and", "are", "as", "at", "be", "by", "do", "for", "how", "i", "if",
-    "in", "is", "it", "my", "of", "on", "or", "the", "to", "was", "what", "when",
-    "where", "which", "will", "with", "you", "your",
-}
+
+@lru_cache(maxsize=1)
+def _operations() -> dict:
+    return json.loads((FIXTURES / "operations.json").read_text())
 
 
 @lru_cache(maxsize=1)
-def _transactions() -> dict:
-    return json.loads((FIXTURES / "transactions.json").read_text())
+def _instructions() -> dict:
+    return json.loads((FIXTURES / "instructions.json").read_text())
 
 
-@lru_cache(maxsize=1)
-def _faq_docs() -> tuple:
-    return tuple(json.loads((FIXTURES / "faq.json").read_text()))
+def rubles(amount: dict) -> float:
+    """Convert an MCP amount object to rubles (value is in minor units)."""
+    return amount["value"] / amount["minorUnits"]
 
 
-def _tokens(text: str) -> set[str]:
-    words = "".join(c.lower() if c.isalnum() else " " for c in text).split()
-    return {w for w in words if w not in _STOPWORDS}
+def _summary(ops: list[dict]) -> dict:
+    return {
+        "operationsCount": len(ops),
+        "totalExpense": sum(rubles(o["amount"]) for o in ops if o["direction"] == "EXPENSE"),
+        "totalIncome": sum(rubles(o["amount"]) for o in ops if o["direction"] == "INCOME"),
+    }
 
 
-def get_transactions(user_id: str) -> list[dict]:
-    """Return the fixture transactions for a user (empty list if unknown)."""
-    return _transactions().get(user_id, [])
+def mcp_clear(user_id: str, from_date: str, to_date: str, operation_amount: int | None = None) -> dict:
+    """Transaction history for [from_date, to_date) (yyyy-MM-dd; to_date exclusive).
 
-
-def retrieve_faq(query: str, k: int = 3) -> list[dict]:
-    """Return up to k FAQ docs [{doc_id, text}] ranked by query token overlap.
-
-    Deterministic: score ties are broken by the doc's order in the corpus.
-    Docs with zero overlap are dropped.
+    operation_amount (whole rubles) optionally filters to operations of exactly that value.
+    Returns {operations[], summary{operationsCount, totalExpense, totalIncome}}.
     """
-    q = _tokens(query)
-    scored = []
-    for i, doc in enumerate(_faq_docs()):
-        score = len(q & _tokens(doc["text"]))
-        if score:
-            scored.append((-score, i, doc))
-    scored.sort()
-    return [{"doc_id": doc["doc_id"], "text": doc["text"]} for _, _, doc in scored[:k]]
+    ops = [
+        o for o in _operations().get(user_id, [])
+        if from_date <= o["operationDate"] < to_date
+    ]
+    if operation_amount is not None:
+        ops = [o for o in ops if rubles(o["amount"]) == operation_amount]
+    return {"operations": ops, "summary": _summary(ops)}
+
+
+def get_instruction(instruction_names: list[str]) -> dict[str, str]:
+    """Return verified instruction texts for the given topic keys (unknown keys omitted)."""
+    data = _instructions()
+    return {name: data[name] for name in instruction_names if name in data}

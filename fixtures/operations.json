@@ -1,0 +1,48 @@
+{
+  "user_alfa": [
+    {
+      "id": "op_smart",
+      "operationId": "A1B2C3D4-0000-0000-0000-000000000001",
+      "halfTransactionKey": "op_smart",
+      "account": {"name": "Основной счёт", "number": "40817810***7020"},
+      "beneficiaryAccount": {"name": null, "number": null},
+      "dateTime": "2026-07-12T10:15:00.000+03:00",
+      "operationDate": "2026-07-12",
+      "title": "Альфа-Смарт",
+      "amount": {"value": 29900, "currency": "RUR", "minorUnits": 100},
+      "direction": "EXPENSE",
+      "operationType": "FEE",
+      "systemCode": "SUBSCRIPTION_FEE",
+      "mcc": null,
+      "operationContent": "Ежемесячная плата за подписку Альфа-Смарт. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {"requestId": "", "id": "-1", "name": "Альфа-Банк"},
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {"accounts": ["40817810***7020"], "operationSign": ["EXPENSE"]}
+    },
+    {
+      "id": "1260715MOCOIPFBT00013",
+      "operationId": "E7823003-A233-1AF9-894A-0004AC1D4FDA",
+      "halfTransactionKey": "1260715MOCOIPFBT00013",
+      "account": {"name": "Основной счёт", "number": "40817810***7020"},
+      "beneficiaryAccount": {"name": null, "number": "30232810***3431"},
+      "dateTime": "2026-07-15T13:03:23.263+03:00",
+      "operationDate": "2026-07-15",
+      "title": "Перевод себе в другой банк через СБП",
+      "amount": {"value": 34000, "currency": "RUR", "minorUnits": 100},
+      "direction": "EXPENSE",
+      "operationType": "C42",
+      "systemCode": "FAST_PAYMENT_SYSTEM_TRANSFER_ME2ME",
+      "mcc": null,
+      "operationContent": "Перевод C421507260000395 через Систему быстрых платежей на +7 (905) 621-67-53. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {"requestId": "9dbd49c6-ac1f-41aa-8215-acd9d114661e", "id": "-1", "name": "Другое"},
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {"accounts": ["40817810***7020"], "operationSign": ["EXPENSE"]}
+    }
+  ]
+}

@@ -11,7 +11,7 @@ pip install -r requirements.txt
 python3 runner.py --dataset data/golden_mini.jsonl
 
 # Single case
-python3 runner.py --dataset data/golden_mini.jsonl --case-id txn_001
+python3 runner.py --dataset data/golden_mini.jsonl --case-id subscription_299
 
 # Tests (deterministic checks + tools; no API key needed) — run one: -k pattern via pytest, or:
 python3 -m unittest discover -s tests -t .
@@ -30,8 +30,11 @@ verifiable with no API key.
 runner → trace per case → [groundedness + resolution + checks] (parallel) → aggregate → report + run diff
 ```
 
+Domain: Alfa-Bank transaction-history support agent (Russian; replies prefixed
+`final_answer:` / `no_comments:`). Real agent prompt: `agent_prompt_v2.md` → `prompts/agent.md`.
+
 **Fixed constraints — do not redesign:**
-- Judges read ONLY the captured trace, never live MCP/FAQ
+- Judges read ONLY the captured trace, never live tools
 - `checks.py` is deterministic, no LLM (spec: `docs/checks_spec.md`)
 - Policy: `solved = resolution_yes AND no_critical_unsupported_claim AND tools_ok`
 - Every run writes to `runs/<timestamp>/`, nothing is overwritten
@@ -46,24 +49,26 @@ runner → trace per case → [groundedness + resolution + checks] (parallel) �
 ## Schemas
 
 **golden_set.jsonl** (one JSON object per line):
-`{id, query, intent, operator_answer, must_facts[], needs_transactions, fixture_user, planted_txn_id, expected_faq_doc}`
+`{id, query, intent, current_date, operator_answer, must_facts[], needs_history, fixture_user, planted_operation_id, expected_instruction}`
 
 **trace** (written per case to `runs/<ts>/traces/`):
 `{case_id, answer, tool_calls[{name, args, result}], chunks[{doc_id, text}]}`
 
 ## Agent (agent.py + tools.py)
 
-`run_agent(case)` dispatches to `run_llm_agent` (Claude, manual tool-use loop) or
-`run_offline_agent` (deterministic baseline). Both drive the same tools in `tools.py`:
-- `get_transactions` — the MCP-served transactions tool. `tools.py` holds the offline
-  fixture adapter; in production it is served over MCP. Swap behind that seam without
-  touching the runner/judges. Calls land in `trace.tool_calls[]`.
-- `retrieve_faq` (agent tool `search_faq`) — FAQ retrieval over `fixtures/faq.json`,
-  deterministic token-overlap scorer. Results land in `trace.chunks[]`.
+`run_agent(case)` dispatches to `run_llm_agent` (Claude, manual tool-use loop, system prompt
+`prompts/agent.md`) or `run_offline_agent` (deterministic baseline). Both drive the same tools:
+- `MCPClear(user, fromDate, toDate, operationAmount?)` — the MCP-served history tool. `tools.py`
+  holds the offline fixture adapter; in production it is served over MCP. Swap behind that seam
+  without touching the runner/judges. Calls land in `trace.tool_calls[]` (RAW MCP data).
+- `getInstruction(names[])` — verified topic explanations (alfaSmart, alfaCheck, …). Results land
+  in `trace.chunks[]` (grounding).
 
-Tools read only from `fixtures/` (`transactions.json`, `faq.json`) — no network, so runs
-are reproducible. Fixture data must back the golden cases: `fixture_user`/`planted_txn_id`
-in `transactions.json`, `expected_faq_doc` in `faq.json`.
+Tools read only from `fixtures/` (`operations.json` in the real MCP shape, `instructions.json`)
+— no network, so runs are reproducible. **Amount encoding**: operation `amount = value / minorUnits`
+rubles (value is in kopecks — 299 ₽ ⇒ `value: 29900, minorUnits: 100`). Fixture data backs the
+golden cases: `fixture_user`/`planted_operation_id` in `operations.json`, `expected_instruction`
+key in `instructions.json`. Real MCP format reference: `json_answer_history_operations.md`.
 
 ## Judges (implemented in Phase 4)
 

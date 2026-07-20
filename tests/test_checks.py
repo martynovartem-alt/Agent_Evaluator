@@ -5,9 +5,9 @@ from pathlib import Path
 
 from agent import run_offline_agent
 from checks import (
-    check_faq_doc,
+    check_instruction_ok,
     check_must_facts,
-    check_planted_txn,
+    check_planted_operation,
     check_tools_ok,
     run_checks,
 )
@@ -15,99 +15,78 @@ from checks import (
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def _txn_call(*txn_ids):
+def _mcp_call(*op_ids):
     return {
-        "name": "get_transactions",
-        "args": {"user_id": "u"},
-        "result": {"transactions": [{"id": i} for i in txn_ids]},
+        "name": "MCPClear",
+        "args": {"fromDate": "2026-01-01", "toDate": "2026-12-31"},
+        "result": {"operations": [{"id": i} for i in op_ids]},
     }
 
 
 class TestToolsOk(unittest.TestCase):
     def test_called_when_needed(self):
-        self.assertTrue(check_tools_ok({"needs_transactions": True}, {"tool_calls": [_txn_call("t1")]}))
+        self.assertTrue(check_tools_ok({"needs_history": True}, {"tool_calls": [_mcp_call("o1")]}))
 
     def test_not_called_when_needed(self):
-        self.assertFalse(check_tools_ok({"needs_transactions": True}, {"tool_calls": []}))
+        self.assertFalse(check_tools_ok({"needs_history": True}, {"tool_calls": []}))
 
     def test_called_when_not_needed(self):
-        self.assertFalse(check_tools_ok({"needs_transactions": False}, {"tool_calls": [_txn_call("t1")]}))
+        self.assertFalse(check_tools_ok({"needs_history": False}, {"tool_calls": [_mcp_call("o1")]}))
 
     def test_not_called_when_not_needed(self):
-        self.assertTrue(check_tools_ok({"needs_transactions": False}, {"tool_calls": []}))
+        self.assertTrue(check_tools_ok({"needs_history": False}, {"tool_calls": []}))
 
-    def test_multiple_calls_still_ok(self):
-        trace = {"tool_calls": [_txn_call("t1"), _txn_call("t2")]}
-        self.assertTrue(check_tools_ok({"needs_transactions": True}, trace))
-
-    def test_other_tool_does_not_satisfy(self):
-        trace = {"tool_calls": [{"name": "search_faq", "args": {}, "result": {}}]}
-        self.assertFalse(check_tools_ok({"needs_transactions": True}, trace))
+    def test_getinstruction_alone_does_not_satisfy(self):
+        trace = {"tool_calls": [{"name": "getInstruction", "args": {}, "result": {}}]}
+        self.assertFalse(check_tools_ok({"needs_history": True}, trace))
 
 
 class TestMustFacts(unittest.TestCase):
     def test_all_present(self):
-        case = {"must_facts": ["Netflix", "50"]}
-        trace = {"answer": "You paid $50 to Netflix."}
-        self.assertEqual(check_must_facts(case, trace), {"Netflix": True, "50": True})
+        case = {"must_facts": ["Альфа-Смарт", "299"]}
+        trace = {"answer": "Плата за «Альфа-Смарт» — 299 ₽."}
+        self.assertEqual(check_must_facts(case, trace), {"Альфа-Смарт": True, "299": True})
 
     def test_one_missing(self):
-        case = {"must_facts": ["Netflix", "Spotify"]}
-        trace = {"answer": "You paid $50 to Netflix."}
-        self.assertEqual(check_must_facts(case, trace), {"Netflix": True, "Spotify": False})
+        case = {"must_facts": ["Альфа-Смарт", "Альфа-Чек"]}
+        trace = {"answer": "Плата за «Альфа-Смарт»."}
+        self.assertEqual(check_must_facts(case, trace), {"Альфа-Смарт": True, "Альфа-Чек": False})
 
-    def test_case_insensitive_both_directions(self):
-        self.assertEqual(check_must_facts({"must_facts": ["NETFLIX"]}, {"answer": "netflix"}), {"NETFLIX": True})
-        self.assertEqual(check_must_facts({"must_facts": ["pin"]}, {"answer": "Reset your PIN"}), {"pin": True})
+    def test_case_insensitive(self):
+        self.assertEqual(check_must_facts({"must_facts": ["СБП"]}, {"answer": "перевод сбп"}), {"СБП": True})
 
-    def test_substring_semantics(self):
-        # Spec is substring match: "50" is found inside "$500".
-        self.assertEqual(check_must_facts({"must_facts": ["50"]}, {"answer": "balance $500"}), {"50": True})
-
-    def test_empty_must_facts(self):
-        self.assertEqual(check_must_facts({"must_facts": []}, {"answer": "anything"}), {})
-
-    def test_missing_answer(self):
+    def test_empty_and_missing_answer(self):
+        self.assertEqual(check_must_facts({"must_facts": []}, {"answer": "x"}), {})
         self.assertEqual(check_must_facts({"must_facts": ["x"]}, {}), {"x": False})
 
 
-class TestFaqDoc(unittest.TestCase):
+class TestInstructionOk(unittest.TestCase):
     def test_present(self):
-        case = {"expected_faq_doc": "faq_pin_reset"}
-        trace = {"chunks": [{"doc_id": "faq_pin_reset", "text": "..."}]}
-        self.assertTrue(check_faq_doc(case, trace))
+        trace = {"chunks": [{"doc_id": "alfaSmart", "text": "..."}]}
+        self.assertTrue(check_instruction_ok({"expected_instruction": "alfaSmart"}, trace))
 
     def test_absent(self):
-        case = {"expected_faq_doc": "faq_pin_reset"}
-        trace = {"chunks": [{"doc_id": "faq_fees", "text": "..."}]}
-        self.assertFalse(check_faq_doc(case, trace))
+        trace = {"chunks": [{"doc_id": "alfaCheck", "text": "..."}]}
+        self.assertFalse(check_instruction_ok({"expected_instruction": "alfaSmart"}, trace))
 
     def test_no_expectation_is_none(self):
-        self.assertIsNone(check_faq_doc({"expected_faq_doc": None}, {"chunks": []}))
-        self.assertIsNone(check_faq_doc({}, {"chunks": []}))
-
-    def test_present_among_many(self):
-        trace = {"chunks": [{"doc_id": "a"}, {"doc_id": "faq_pin_reset"}, {"doc_id": "b"}]}
-        self.assertTrue(check_faq_doc({"expected_faq_doc": "faq_pin_reset"}, trace))
+        self.assertIsNone(check_instruction_ok({"expected_instruction": None}, {"chunks": []}))
 
 
-class TestPlantedTxn(unittest.TestCase):
+class TestPlantedOperation(unittest.TestCase):
     def test_present(self):
-        case = {"planted_txn_id": "txn_abc"}
-        trace = {"tool_calls": [_txn_call("txn_aaa", "txn_abc")]}
-        self.assertTrue(check_planted_txn(case, trace))
+        trace = {"tool_calls": [_mcp_call("o1", "op_smart")]}
+        self.assertTrue(check_planted_operation({"planted_operation_id": "op_smart"}, trace))
 
     def test_absent(self):
-        case = {"planted_txn_id": "txn_abc"}
-        trace = {"tool_calls": [_txn_call("txn_aaa")]}
-        self.assertFalse(check_planted_txn(case, trace))
+        trace = {"tool_calls": [_mcp_call("o1")]}
+        self.assertFalse(check_planted_operation({"planted_operation_id": "op_smart"}, trace))
 
     def test_no_expectation_is_none(self):
-        self.assertIsNone(check_planted_txn({"planted_txn_id": None}, {"tool_calls": []}))
+        self.assertIsNone(check_planted_operation({"planted_operation_id": None}, {"tool_calls": []}))
 
     def test_no_tool_call_is_false(self):
-        case = {"planted_txn_id": "txn_abc"}
-        self.assertFalse(check_planted_txn(case, {"tool_calls": []}))
+        self.assertFalse(check_planted_operation({"planted_operation_id": "op_smart"}, {"tool_calls": []}))
 
 
 class TestRunChecksIntegration(unittest.TestCase):
@@ -124,11 +103,10 @@ class TestRunChecksIntegration(unittest.TestCase):
             with self.subTest(case=case["id"]):
                 self.assertTrue(result["tools_ok"])
                 self.assertTrue(result["all_must_facts_present"])
-                # Diagnostic checks are None when the case has no expectation.
-                if case.get("expected_faq_doc"):
-                    self.assertTrue(result["faq_doc_ok"])
-                if case.get("planted_txn_id") and case.get("needs_transactions"):
-                    self.assertTrue(result["planted_txn_ok"])
+                if case.get("expected_instruction"):
+                    self.assertTrue(result["instruction_ok"])
+                if case.get("planted_operation_id") and case.get("needs_history"):
+                    self.assertTrue(result["planted_operation_ok"])
 
 
 if __name__ == "__main__":
