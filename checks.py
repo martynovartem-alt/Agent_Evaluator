@@ -25,6 +25,23 @@ def check_faq_doc(case: dict, trace: dict) -> bool | None:
     return expected in retrieved
 
 
+def check_planted_txn(case: dict, trace: dict) -> bool | None:
+    """planted_txn_id must appear in a get_transactions result. None = no expectation.
+
+    Retrieval-side check for the MCP tool (mirror of faq_doc_ok): did the tool path
+    actually surface the case's planted transaction, independent of the final answer.
+    """
+    planted = case.get("planted_txn_id")
+    if not planted:
+        return None
+    for tc in trace.get("tool_calls", []):
+        if tc.get("name") == "get_transactions":
+            txns = tc.get("result", {}).get("transactions", [])
+            if any(t.get("id") == planted for t in txns):
+                return True
+    return False
+
+
 def run_checks(case: dict, trace: dict) -> dict:
     must_facts = check_must_facts(case, trace)
     return {
@@ -32,4 +49,5 @@ def run_checks(case: dict, trace: dict) -> dict:
         "must_facts": must_facts,
         "all_must_facts_present": all(must_facts.values()) if must_facts else True,
         "faq_doc_ok": check_faq_doc(case, trace),
+        "planted_txn_ok": check_planted_txn(case, trace),
     }

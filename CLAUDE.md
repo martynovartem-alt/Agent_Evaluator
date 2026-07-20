@@ -12,6 +12,10 @@ python3 runner.py --dataset data/golden_mini.jsonl
 
 # Single case
 python3 runner.py --dataset data/golden_mini.jsonl --case-id txn_001
+
+# Tests (deterministic checks + tools; no API key needed) — run one: -k pattern via pytest, or:
+python3 -m unittest discover -s tests -t .
+python3 -m unittest tests.test_checks.TestToolsOk   # single class
 ```
 
 **Agent mode** (`AGENT_MODE`): `auto` (default — real Claude agent if `ANTHROPIC_API_KEY`

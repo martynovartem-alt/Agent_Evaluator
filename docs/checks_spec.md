@@ -17,6 +17,12 @@ Returns per-fact dict + `all_must_facts_present` boolean.
 `case.expected_faq_doc` appears in `trace.chunks[].doc_id`.
 Returns `None` when `expected_faq_doc` is null (no expectation for this case).
 
+### planted_txn_ok
+`case.planted_txn_id` appears as a transaction `id` in some `get_transactions` result
+in `trace.tool_calls[]`. Retrieval-side check for the MCP tool (mirror of `faq_doc_ok`):
+verifies the tool path surfaced the planted transaction, independent of the answer.
+Returns `None` when `planted_txn_id` is null.
+
 ## Policy (lives in aggregate.py, not checks.py)
 
 ```
