@@ -1,0 +1,2635 @@
+{
+  "user_0001": [
+    {
+      "id": "G260422MOCOIPFBT00007",
+      "operationId": "58D5563D-AB2C-D31E-E315-128862C33A4F",
+      "halfTransactionKey": "G260422MOCOIPFBT00007",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***1369"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-04-22T20:18:45+03:00",
+      "operationDate": "2026-04-22",
+      "title": "Комиссия за обслуживание счёта",
+      "amount": {
+        "value": 26400,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "FEE",
+      "systemCode": "ACCOUNT_MAINTENANCE_FEE",
+      "mcc": null,
+      "operationContent": "Комиссия за обслуживание счёта. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "2B0537E6-5AFF-B229-7631-A992F0CE5835",
+        "id": "-1",
+        "name": "Альфа-Банк"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260424MOCOIPFBT00003",
+      "operationId": "0F4205B4-907A-70C3-1012-F037B64CE422",
+      "halfTransactionKey": "G260424MOCOIPFBT00003",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***4374"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-04-24T12:23:06+03:00",
+      "operationDate": "2026-04-24",
+      "title": "Оплата «Netflix»",
+      "amount": {
+        "value": 62500,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "SUBSCRIPTION",
+      "systemCode": "RECURRENT_PAYMENT",
+      "mcc": 5968,
+      "operationContent": "Оплата «Netflix» по карте *9974. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "6D76B07E-881E-D162-AE2E-B1547F150524",
+        "id": "-1",
+        "name": "Netflix"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260502MOCOIPFBT00012",
+      "operationId": "66836886-A260-CD0B-7B45-145C1A81682C",
+      "halfTransactionKey": "G260502MOCOIPFBT00012",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***2019"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-05-02T18:25:25+03:00",
+      "operationDate": "2026-05-02",
+      "title": "Оплата «Магнит»",
+      "amount": {
+        "value": 199000,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "POS",
+      "systemCode": "CARD_PAYMENT",
+      "mcc": 5411,
+      "operationContent": "Оплата «Магнит» по карте *7457. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "3571810A-FC13-2D0D-113D-B17D30CBC97D",
+        "id": "-1",
+        "name": "Магнит"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": true,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260503MOCOIPFBT00008",
+      "operationId": "65DC9F50-3F63-AF83-BD05-61E6211C70CF",
+      "halfTransactionKey": "G260503MOCOIPFBT00008",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***7405"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-05-03T07:13:49+03:00",
+      "operationDate": "2026-05-03",
+      "title": "Оплата «Яндекс Плюс»",
+      "amount": {
+        "value": 32500,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "SUBSCRIPTION",
+      "systemCode": "RECURRENT_PAYMENT",
+      "mcc": 5968,
+      "operationContent": "Оплата «Яндекс Плюс» по карте *5709. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "14A0F9E7-7F1B-103C-DF15-82B0EAB477D2",
+        "id": "-1",
+        "name": "Яндекс"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260518MOCOIPFBT00005",
+      "operationId": "5790F82E-C1D3-FCFF-2A3A-F4D46B0A18E8",
+      "halfTransactionKey": "G260518MOCOIPFBT00005",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***3490"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": "30232810***9011"
+      },
+      "dateTime": "2026-05-18T15:38:04+03:00",
+      "operationDate": "2026-05-18",
+      "title": "Перевод себе в другой банк через СБП",
+      "amount": {
+        "value": 5932900,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "C42",
+      "systemCode": "FAST_PAYMENT_SYSTEM_TRANSFER_ME2ME",
+      "mcc": null,
+      "operationContent": "Перевод через Систему быстрых платежей на +7 (918) ***-**-**. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "AB1031D0-F646-E1F4-0A09-7C976BF46C69",
+        "id": "-1",
+        "name": "Другое"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260528MOCOIPFBT00001",
+      "operationId": "F28C105D-1FB1-7C23-90C1-92CFD3AC94AF",
+      "halfTransactionKey": "G260528MOCOIPFBT00001",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***4657"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-05-28T08:35:27+03:00",
+      "operationDate": "2026-05-28",
+      "title": "Оплата «Wildberries»",
+      "amount": {
+        "value": 227100,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "POS",
+      "systemCode": "CARD_PAYMENT",
+      "mcc": 5399,
+      "operationContent": "Оплата «Wildberries» по карте *1968. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "F29D0DA9-953F-48F1-A09F-76B5A170B338",
+        "id": "-1",
+        "name": "Wildberries"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": true,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260602MOCOIPFBT00010",
+      "operationId": "3BBBE9EA-A894-8C89-3B61-867626BB7DBD",
+      "halfTransactionKey": "G260602MOCOIPFBT00010",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***1197"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-02T10:05:11+03:00",
+      "operationDate": "2026-06-02",
+      "title": "Абонентская плата Альфа-Смарт",
+      "amount": {
+        "value": 29900,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "FEE",
+      "systemCode": "SUBSCRIPTION_FEE",
+      "mcc": null,
+      "operationContent": "Абонентская плата Альфа-Смарт. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "2EAE05CF-96D0-CC5F-D4C2-8C2E7C26847F",
+        "id": "-1",
+        "name": "Альфа-Банк"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260610MOCOIPFBT00004",
+      "operationId": "C7A2EA20-B2F1-4C94-2E05-319ACB5C7427",
+      "halfTransactionKey": "G260610MOCOIPFBT00004",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***4999"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-10T20:23:19+03:00",
+      "operationDate": "2026-06-10",
+      "title": "Возврат «Wildberries»",
+      "amount": {
+        "value": 509600,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "INCOME",
+      "operationType": "REFUND",
+      "systemCode": "CARD_REFUND",
+      "mcc": 5399,
+      "operationContent": "Возврат «Wildberries» по карте *5070. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "86734721-4CDD-2055-930D-6EAF14F4733F",
+        "id": "-1",
+        "name": "Wildberries"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "INCOME"
+        ]
+      }
+    },
+    {
+      "id": "G260617MOCOIPFBT00011",
+      "operationId": "519088F5-90FB-BD11-9C1C-AAF75E8766ED",
+      "halfTransactionKey": "G260617MOCOIPFBT00011",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***3056"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-17T10:26:34+03:00",
+      "operationDate": "2026-06-17",
+      "title": "Комиссия за обслуживание счёта",
+      "amount": {
+        "value": 10000,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "FEE",
+      "systemCode": "ACCOUNT_MAINTENANCE_FEE",
+      "mcc": null,
+      "operationContent": "Комиссия за обслуживание счёта. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "F341E07A-83F7-3F16-DBF4-A8B2B0C4312D",
+        "id": "-1",
+        "name": "Альфа-Банк"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260629MOCOIPFBT00009",
+      "operationId": "B4D66A3A-4746-9A4D-8CDB-305FDD2E1609",
+      "halfTransactionKey": "G260629MOCOIPFBT00009",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***7804"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-29T14:56:08+03:00",
+      "operationDate": "2026-06-29",
+      "title": "Возврат «Wildberries»",
+      "amount": {
+        "value": 359000,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "INCOME",
+      "operationType": "REFUND",
+      "systemCode": "CARD_REFUND",
+      "mcc": 5399,
+      "operationContent": "Возврат «Wildberries» по карте *8053. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "E25A7605-AEC6-F024-5BD8-6D40FC891B4A",
+        "id": "-1",
+        "name": "Wildberries"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "INCOME"
+        ]
+      }
+    },
+    {
+      "id": "G260701MOCOIPFBT00000",
+      "operationId": "0ED90475-9531-985D-5D9D-C9F81818E811",
+      "halfTransactionKey": "G260701MOCOIPFBT00000",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***9313"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-07-01T07:04:52+03:00",
+      "operationDate": "2026-07-01",
+      "title": "Снятие наличных в банкомате",
+      "amount": {
+        "value": 4365900,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "ATM",
+      "systemCode": "ATM_WITHDRAWAL",
+      "mcc": null,
+      "operationContent": "Снятие наличных в банкомате по карте *9779. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "6F03675A-1600-A35A-0999-50D836F675CC",
+        "id": "-1",
+        "name": "Банкомат"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260711MOCOIPFBT00006",
+      "operationId": "F1D69ED6-17F5-E837-D708-20FE119A72D1",
+      "halfTransactionKey": "G260711MOCOIPFBT00006",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***5422"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": "30232810***8767"
+      },
+      "dateTime": "2026-07-11T17:38:31+03:00",
+      "operationDate": "2026-07-11",
+      "title": "Перевод себе в другой банк через СБП",
+      "amount": {
+        "value": 4508000,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "C42",
+      "systemCode": "FAST_PAYMENT_SYSTEM_TRANSFER_ME2ME",
+      "mcc": null,
+      "operationContent": "Перевод через Систему быстрых платежей на +7 (997) ***-**-**. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "0F88080B-10A3-D6B2-AA05-E11AB2715945",
+        "id": "-1",
+        "name": "Другое"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260713MOCOIPFBT00002",
+      "operationId": "8A6A63EC-24ED-E6A4-6B4C-B2424A23D596",
+      "halfTransactionKey": "G260713MOCOIPFBT00002",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***2929"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-07-13T13:02:35+03:00",
+      "operationDate": "2026-07-13",
+      "title": "Снятие наличных в банкомате",
+      "amount": {
+        "value": 424900,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "ATM",
+      "systemCode": "ATM_WITHDRAWAL",
+      "mcc": null,
+      "operationContent": "Снятие наличных в банкомате по карте *3181. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "D0EDA82F-8F6D-0558-4EF8-AA3892276658",
+        "id": "-1",
+        "name": "Банкомат"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    }
+  ],
+  "user_0002": [
+    {
+      "id": "G260503MOCOIPFBT00007",
+      "operationId": "E8E72789-1EB2-0109-A91C-2439D5AB8B4D",
+      "halfTransactionKey": "G260503MOCOIPFBT00007",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***7365"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-05-03T17:51:41+03:00",
+      "operationDate": "2026-05-03",
+      "title": "Оплата «Пятёрочка»",
+      "amount": {
+        "value": 211300,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "POS",
+      "systemCode": "CARD_PAYMENT",
+      "mcc": 5411,
+      "operationContent": "Оплата «Пятёрочка» по карте *2389. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "330698A1-C009-3492-B624-6771C8450070",
+        "id": "-1",
+        "name": "Пятёрочка"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": true,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260510MOCOIPFBT00014",
+      "operationId": "81F98B52-1905-D591-C5B2-E75A0ACD8BE1",
+      "halfTransactionKey": "G260510MOCOIPFBT00014",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***8408"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-05-10T07:15:12+03:00",
+      "operationDate": "2026-05-10",
+      "title": "Проценты на остаток",
+      "amount": {
+        "value": 22700,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "INCOME",
+      "operationType": "INTEREST",
+      "systemCode": "INTEREST_ACCRUAL",
+      "mcc": null,
+      "operationContent": "Проценты на остаток по карте *5537. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "E4DDF9B9-C28E-E907-0722-35C28FCD7F40",
+        "id": "-1",
+        "name": "Альфа-Банк"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "INCOME"
+        ]
+      }
+    },
+    {
+      "id": "G260511MOCOIPFBT00010",
+      "operationId": "23A5EF88-EF02-090B-BFDE-FC1586CE03F9",
+      "halfTransactionKey": "G260511MOCOIPFBT00010",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***8107"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-05-11T06:51:46+03:00",
+      "operationDate": "2026-05-11",
+      "title": "Оплата «Иви»",
+      "amount": {
+        "value": 30900,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "SUBSCRIPTION",
+      "systemCode": "RECURRENT_PAYMENT",
+      "mcc": 5968,
+      "operationContent": "Оплата «Иви» по карте *2683. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "D37EE915-31DE-C4F4-DF2A-8B79FC8E80B3",
+        "id": "-1",
+        "name": "Иви"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260520MOCOIPFBT00008",
+      "operationId": "F26149ED-BE4C-5CE6-66C1-494E7691B06F",
+      "halfTransactionKey": "G260520MOCOIPFBT00008",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***2391"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-05-20T16:05:51+03:00",
+      "operationDate": "2026-05-20",
+      "title": "Оплата «Netflix»",
+      "amount": {
+        "value": 71000,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "SUBSCRIPTION",
+      "systemCode": "RECURRENT_PAYMENT",
+      "mcc": 5968,
+      "operationContent": "Оплата «Netflix» по карте *7485. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "FE3C9C8F-2B85-5C1F-28AA-CA51B98C67C2",
+        "id": "-1",
+        "name": "Netflix"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260602MOCOIPFBT00001",
+      "operationId": "7CF20724-D953-EE26-1D87-CEC31F7296AB",
+      "halfTransactionKey": "G260602MOCOIPFBT00001",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***8634"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-02T17:38:23+03:00",
+      "operationDate": "2026-06-02",
+      "title": "Оплата «Иви»",
+      "amount": {
+        "value": 42800,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "SUBSCRIPTION",
+      "systemCode": "RECURRENT_PAYMENT",
+      "mcc": 5968,
+      "operationContent": "Оплата «Иви» по карте *8768. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "15FC899E-4FD5-8DBE-7BDC-968B7AFB2C68",
+        "id": "-1",
+        "name": "Иви"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260604MOCOIPFBT00003",
+      "operationId": "174C77A2-DD02-DE92-A496-36A2FA7F0EAB",
+      "halfTransactionKey": "G260604MOCOIPFBT00003",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***5278"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-04T06:48:33+03:00",
+      "operationDate": "2026-06-04",
+      "title": "Оплата «Иви»",
+      "amount": {
+        "value": 57700,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "SUBSCRIPTION",
+      "systemCode": "RECURRENT_PAYMENT",
+      "mcc": 5968,
+      "operationContent": "Оплата «Иви» по карте *5883. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "2AC34446-E883-A1D4-5DE0-099784B5A818",
+        "id": "-1",
+        "name": "Иви"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260605MOCOIPFBT00004",
+      "operationId": "C9D488B1-CFBF-3360-9CFC-865239194242",
+      "halfTransactionKey": "G260605MOCOIPFBT00004",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***4197"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-05T22:21:40+03:00",
+      "operationDate": "2026-06-05",
+      "title": "Абонентская плата Альфа-Смарт",
+      "amount": {
+        "value": 29900,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "FEE",
+      "systemCode": "SUBSCRIPTION_FEE",
+      "mcc": null,
+      "operationContent": "Абонентская плата Альфа-Смарт. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "66934036-D17E-4497-3D48-82A5CE5B2A92",
+        "id": "-1",
+        "name": "Альфа-Банк"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260605MOCOIPFBT00012",
+      "operationId": "86048719-26DE-BFDB-8825-AE562179B37D",
+      "halfTransactionKey": "G260605MOCOIPFBT00012",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***9364"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-05T22:26:52+03:00",
+      "operationDate": "2026-06-05",
+      "title": "Возврат «Wildberries»",
+      "amount": {
+        "value": 572600,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "INCOME",
+      "operationType": "REFUND",
+      "systemCode": "CARD_REFUND",
+      "mcc": 5399,
+      "operationContent": "Возврат «Wildberries» по карте *9219. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "C6C91B92-70AC-06AC-DF70-301704C9D78D",
+        "id": "-1",
+        "name": "Wildberries"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "INCOME"
+        ]
+      }
+    },
+    {
+      "id": "G260606MOCOIPFBT00006",
+      "operationId": "325B55DD-7857-2976-3A12-917C1A26F889",
+      "halfTransactionKey": "G260606MOCOIPFBT00006",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***6533"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-06T17:23:05+03:00",
+      "operationDate": "2026-06-06",
+      "title": "Возврат «Wildberries»",
+      "amount": {
+        "value": 692300,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "INCOME",
+      "operationType": "REFUND",
+      "systemCode": "CARD_REFUND",
+      "mcc": 5399,
+      "operationContent": "Возврат «Wildberries» по карте *4612. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "FC394724-9FC2-D0A1-7B8F-2AB53451D013",
+        "id": "-1",
+        "name": "Wildberries"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "INCOME"
+        ]
+      }
+    },
+    {
+      "id": "G260621MOCOIPFBT00005",
+      "operationId": "4787F93B-CA44-EB86-0726-E25CFD56A926",
+      "halfTransactionKey": "G260621MOCOIPFBT00005",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***8737"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-21T21:22:46+03:00",
+      "operationDate": "2026-06-21",
+      "title": "Оплата «МТС»",
+      "amount": {
+        "value": 88000,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "POS",
+      "systemCode": "CARD_PAYMENT",
+      "mcc": 4814,
+      "operationContent": "Оплата «МТС» по карте *1474. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "9AEA6429-B149-1E24-3192-B70442594052",
+        "id": "-1",
+        "name": "МТС"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": true,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260623MOCOIPFBT00011",
+      "operationId": "4265BB31-5374-0902-9620-BF0DC38084A0",
+      "halfTransactionKey": "G260623MOCOIPFBT00011",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***9918"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-23T12:18:32+03:00",
+      "operationDate": "2026-06-23",
+      "title": "Оплата «Пятёрочка»",
+      "amount": {
+        "value": 118100,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "POS",
+      "systemCode": "CARD_PAYMENT",
+      "mcc": 5411,
+      "operationContent": "Оплата «Пятёрочка» по карте *4940. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "0F977044-218E-0B7B-D58D-CDB46B446806",
+        "id": "-1",
+        "name": "Пятёрочка"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": true,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260627MOCOIPFBT00013",
+      "operationId": "8E752FDF-1ECE-615D-B9A6-442E9E7D6B37",
+      "halfTransactionKey": "G260627MOCOIPFBT00013",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***2011"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-27T10:11:09+03:00",
+      "operationDate": "2026-06-27",
+      "title": "Оплата «Пятёрочка»",
+      "amount": {
+        "value": 332800,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "POS",
+      "systemCode": "CARD_PAYMENT",
+      "mcc": 5411,
+      "operationContent": "Оплата «Пятёрочка» по карте *8757. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "87DDAEB7-84B2-8054-AEAD-44B0537390E5",
+        "id": "-1",
+        "name": "Пятёрочка"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": true,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260630MOCOIPFBT00000",
+      "operationId": "5D158A2F-F2EE-4E45-19F9-919C895FD7B3",
+      "halfTransactionKey": "G260630MOCOIPFBT00000",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***1417"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-30T07:06:00+03:00",
+      "operationDate": "2026-06-30",
+      "title": "Оплата «Яндекс Плюс»",
+      "amount": {
+        "value": 28600,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "SUBSCRIPTION",
+      "systemCode": "RECURRENT_PAYMENT",
+      "mcc": 5968,
+      "operationContent": "Оплата «Яндекс Плюс» по карте *3478. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "9D33A01C-353C-631C-DFD4-3F371200339D",
+        "id": "-1",
+        "name": "Яндекс"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260702MOCOIPFBT00002",
+      "operationId": "842E7FC2-2954-0A6E-B12A-A1F6D42FDDBB",
+      "halfTransactionKey": "G260702MOCOIPFBT00002",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***1378"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-07-02T16:47:16+03:00",
+      "operationDate": "2026-07-02",
+      "title": "Оплата «Яндекс Плюс»",
+      "amount": {
+        "value": 39000,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "SUBSCRIPTION",
+      "systemCode": "RECURRENT_PAYMENT",
+      "mcc": 5968,
+      "operationContent": "Оплата «Яндекс Плюс» по карте *8841. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "873BE078-F3B7-A50D-F373-CA533488F876",
+        "id": "-1",
+        "name": "Яндекс"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260704MOCOIPFBT00009",
+      "operationId": "FAF55496-988A-F3FB-D396-30D69C9011EF",
+      "halfTransactionKey": "G260704MOCOIPFBT00009",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***8771"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-07-04T20:51:41+03:00",
+      "operationDate": "2026-07-04",
+      "title": "Оплата «Пятёрочка»",
+      "amount": {
+        "value": 76900,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "POS",
+      "systemCode": "CARD_PAYMENT",
+      "mcc": 5411,
+      "operationContent": "Оплата «Пятёрочка» по карте *3394. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "27E9E06F-59B4-4E92-EFFD-DEEAA842BC19",
+        "id": "-1",
+        "name": "Пятёрочка"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": true,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    }
+  ],
+  "user_0003": [
+    {
+      "id": "G260525MOCOIPFBT00000",
+      "operationId": "CEAF4915-8885-64E8-8216-858F73CCEF03",
+      "halfTransactionKey": "G260525MOCOIPFBT00000",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***8832"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": "30232810***9319"
+      },
+      "dateTime": "2026-05-25T22:38:32+03:00",
+      "operationDate": "2026-05-25",
+      "title": "Перевод себе в другой банк через СБП",
+      "amount": {
+        "value": 8078500,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "C42",
+      "systemCode": "FAST_PAYMENT_SYSTEM_TRANSFER_ME2ME",
+      "mcc": null,
+      "operationContent": "Перевод через Систему быстрых платежей на +7 (934) ***-**-**. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "85F1115B-B2FF-F17B-3F66-5EDEF10637CE",
+        "id": "-1",
+        "name": "Другое"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260528MOCOIPFBT00008",
+      "operationId": "1C0502C6-F029-0531-3D0A-270BB5A432CF",
+      "halfTransactionKey": "G260528MOCOIPFBT00008",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***3645"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-05-28T10:02:33+03:00",
+      "operationDate": "2026-05-28",
+      "title": "Плата за Альфа-Чек",
+      "amount": {
+        "value": 9900,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "FEE",
+      "systemCode": "SUBSCRIPTION_FEE",
+      "mcc": null,
+      "operationContent": "Плата за Альфа-Чек. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "33A71568-2E5F-950C-0CE5-AF69430B91ED",
+        "id": "-1",
+        "name": "Альфа-Банк"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260531MOCOIPFBT00003",
+      "operationId": "56D050CD-6760-1367-83FE-B17BFE7B8AE4",
+      "halfTransactionKey": "G260531MOCOIPFBT00003",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***7902"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-05-31T13:10:45+03:00",
+      "operationDate": "2026-05-31",
+      "title": "Проценты на остаток",
+      "amount": {
+        "value": 34300,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "INCOME",
+      "operationType": "INTEREST",
+      "systemCode": "INTEREST_ACCRUAL",
+      "mcc": null,
+      "operationContent": "Проценты на остаток по карте *8070. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "179A071E-518A-E452-5B4B-1B75321C5296",
+        "id": "-1",
+        "name": "Альфа-Банк"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "INCOME"
+        ]
+      }
+    },
+    {
+      "id": "G260604MOCOIPFBT00004",
+      "operationId": "9FB9AF50-8476-8B8C-54DD-0BA5626467BA",
+      "halfTransactionKey": "G260604MOCOIPFBT00004",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***5840"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-04T20:28:45+03:00",
+      "operationDate": "2026-06-04",
+      "title": "Оплата «Пятёрочка»",
+      "amount": {
+        "value": 153400,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "POS",
+      "systemCode": "CARD_PAYMENT",
+      "mcc": 5411,
+      "operationContent": "Оплата «Пятёрочка» по карте *1296. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "1CE3BC0C-1075-5C97-F5F5-54ED83239EF5",
+        "id": "-1",
+        "name": "Пятёрочка"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": true,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260612MOCOIPFBT00002",
+      "operationId": "23231E1E-E201-5522-40CB-ACD0249A4584",
+      "halfTransactionKey": "G260612MOCOIPFBT00002",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***8663"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-12T10:45:41+03:00",
+      "operationDate": "2026-06-12",
+      "title": "Оплата «Яндекс Плюс»",
+      "amount": {
+        "value": 39700,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "SUBSCRIPTION",
+      "systemCode": "RECURRENT_PAYMENT",
+      "mcc": 5968,
+      "operationContent": "Оплата «Яндекс Плюс» по карте *6999. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "18189AF4-F3D7-4F82-BF26-8EA03836E865",
+        "id": "-1",
+        "name": "Яндекс"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260617MOCOIPFBT00001",
+      "operationId": "ABD0D7FB-1292-6185-50E4-0D54712EA6B3",
+      "halfTransactionKey": "G260617MOCOIPFBT00001",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***4942"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-17T10:26:07+03:00",
+      "operationDate": "2026-06-17",
+      "title": "Оплата «МТС»",
+      "amount": {
+        "value": 80800,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "POS",
+      "systemCode": "CARD_PAYMENT",
+      "mcc": 4814,
+      "operationContent": "Оплата «МТС» по карте *7428. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "AB6286CD-3672-D6AE-12B8-0AED6DA79A87",
+        "id": "-1",
+        "name": "МТС"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": true,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260617MOCOIPFBT00006",
+      "operationId": "CCB1C51D-0EBA-0EA8-4770-A08716E6FEC3",
+      "halfTransactionKey": "G260617MOCOIPFBT00006",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***4003"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-17T22:36:31+03:00",
+      "operationDate": "2026-06-17",
+      "title": "Снятие наличных в банкомате",
+      "amount": {
+        "value": 1078800,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "ATM",
+      "systemCode": "ATM_WITHDRAWAL",
+      "mcc": null,
+      "operationContent": "Снятие наличных в банкомате по карте *6358. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "44D82A53-1289-BAFA-E531-69606CE193C2",
+        "id": "-1",
+        "name": "Банкомат"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260621MOCOIPFBT00005",
+      "operationId": "D1DCEC53-212A-8D9B-C17A-9262453BF491",
+      "halfTransactionKey": "G260621MOCOIPFBT00005",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***7918"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-21T14:17:02+03:00",
+      "operationDate": "2026-06-21",
+      "title": "Оплата «Яндекс Плюс»",
+      "amount": {
+        "value": 22000,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "SUBSCRIPTION",
+      "systemCode": "RECURRENT_PAYMENT",
+      "mcc": 5968,
+      "operationContent": "Оплата «Яндекс Плюс» по карте *3974. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "D1A89B37-AD0C-9BB6-E952-6A69D97E967B",
+        "id": "-1",
+        "name": "Яндекс"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260718MOCOIPFBT00007",
+      "operationId": "1F2642AA-DCDE-D204-43B3-0F66110E2CB6",
+      "halfTransactionKey": "G260718MOCOIPFBT00007",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***8434"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-07-18T14:05:38+03:00",
+      "operationDate": "2026-07-18",
+      "title": "Оплата «Wildberries»",
+      "amount": {
+        "value": 686600,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "POS",
+      "systemCode": "CARD_PAYMENT",
+      "mcc": 5399,
+      "operationContent": "Оплата «Wildberries» по карте *4643. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "8D959C31-FE8A-D4A1-56D2-A68C02F4B342",
+        "id": "-1",
+        "name": "Wildberries"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": true,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    }
+  ],
+  "user_0004": [
+    {
+      "id": "G260427MOCOIPFBT00002",
+      "operationId": "32D90DCD-57BB-7D97-3AC4-DA9AFB813921",
+      "halfTransactionKey": "G260427MOCOIPFBT00002",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***3289"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-04-27T18:32:19+03:00",
+      "operationDate": "2026-04-27",
+      "title": "Проценты на остаток",
+      "amount": {
+        "value": 112800,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "INCOME",
+      "operationType": "INTEREST",
+      "systemCode": "INTEREST_ACCRUAL",
+      "mcc": null,
+      "operationContent": "Проценты на остаток по карте *4525. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "FB5C9D56-58F9-2DEA-FD4B-D030679A44DD",
+        "id": "-1",
+        "name": "Альфа-Банк"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "INCOME"
+        ]
+      }
+    },
+    {
+      "id": "G260430MOCOIPFBT00009",
+      "operationId": "880CB401-A050-6098-04D2-BE09A0B55864",
+      "halfTransactionKey": "G260430MOCOIPFBT00009",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***5006"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": "30232810***9016"
+      },
+      "dateTime": "2026-04-30T18:53:28+03:00",
+      "operationDate": "2026-04-30",
+      "title": "Перевод через СБП",
+      "amount": {
+        "value": 697500,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "C2C",
+      "systemCode": "FAST_PAYMENT_SYSTEM_TRANSFER",
+      "mcc": null,
+      "operationContent": "Перевод через Систему быстрых платежей на +7 (980) ***-**-**. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "CC35E834-74FA-9412-00D9-35344387EE7B",
+        "id": "-1",
+        "name": "Другое"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260501MOCOIPFBT00000",
+      "operationId": "4540F426-2D8A-D8C0-AC12-7E938005CE74",
+      "halfTransactionKey": "G260501MOCOIPFBT00000",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***6685"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-05-01T12:18:28+03:00",
+      "operationDate": "2026-05-01",
+      "title": "Комиссия за обслуживание счёта",
+      "amount": {
+        "value": 23400,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "FEE",
+      "systemCode": "ACCOUNT_MAINTENANCE_FEE",
+      "mcc": null,
+      "operationContent": "Комиссия за обслуживание счёта. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "401D68FB-FE97-7C56-04A6-5651CDBDE747",
+        "id": "-1",
+        "name": "Альфа-Банк"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260511MOCOIPFBT00005",
+      "operationId": "61B2480C-55D8-5E8D-0046-0D692ED65411",
+      "halfTransactionKey": "G260511MOCOIPFBT00005",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***2374"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": "30232810***8776"
+      },
+      "dateTime": "2026-05-11T07:56:19+03:00",
+      "operationDate": "2026-05-11",
+      "title": "Перевод себе в другой банк через СБП",
+      "amount": {
+        "value": 3254000,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "C42",
+      "systemCode": "FAST_PAYMENT_SYSTEM_TRANSFER_ME2ME",
+      "mcc": null,
+      "operationContent": "Перевод через Систему быстрых платежей на +7 (935) ***-**-**. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "33736DCC-A7F0-C99E-80B5-244A4767E1FA",
+        "id": "-1",
+        "name": "Другое"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260516MOCOIPFBT00008",
+      "operationId": "CDFF5A1C-D01A-914C-D5BE-785A9187DF42",
+      "halfTransactionKey": "G260516MOCOIPFBT00008",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***1263"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": "30232810***4767"
+      },
+      "dateTime": "2026-05-16T22:08:58+03:00",
+      "operationDate": "2026-05-16",
+      "title": "Пополнение через СБП",
+      "amount": {
+        "value": 9718700,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "INCOME",
+      "operationType": "C2C",
+      "systemCode": "FAST_PAYMENT_SYSTEM_TRANSFER",
+      "mcc": null,
+      "operationContent": "Перевод через Систему быстрых платежей на +7 (988) ***-**-**. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "22126540-0AB7-7988-07FA-22F715C891FF",
+        "id": "-1",
+        "name": "Другое"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "INCOME"
+        ]
+      }
+    },
+    {
+      "id": "G260614MOCOIPFBT00004",
+      "operationId": "72218FDC-44DF-96FF-2854-14242F733B05",
+      "halfTransactionKey": "G260614MOCOIPFBT00004",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***1059"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-14T15:02:29+03:00",
+      "operationDate": "2026-06-14",
+      "title": "Абонентская плата Альфа-Смарт",
+      "amount": {
+        "value": 29900,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "FEE",
+      "systemCode": "SUBSCRIPTION_FEE",
+      "mcc": null,
+      "operationContent": "Абонентская плата Альфа-Смарт. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "54348156-F637-A468-5D38-5E064363E5D9",
+        "id": "-1",
+        "name": "Альфа-Банк"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260619MOCOIPFBT00006",
+      "operationId": "64DBC8D3-0AAA-AF81-9638-92A766465D28",
+      "halfTransactionKey": "G260619MOCOIPFBT00006",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***1368"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-19T14:52:05+03:00",
+      "operationDate": "2026-06-19",
+      "title": "Оплата «Пятёрочка»",
+      "amount": {
+        "value": 52200,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "POS",
+      "systemCode": "CARD_PAYMENT",
+      "mcc": 5411,
+      "operationContent": "Оплата «Пятёрочка» по карте *3357. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "3B996870-A132-0B9D-4DE2-F8AD4CB59AA7",
+        "id": "-1",
+        "name": "Пятёрочка"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": true,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260621MOCOIPFBT00011",
+      "operationId": "A1FEB624-9DF2-025F-0BF7-A4BDC458272F",
+      "halfTransactionKey": "G260621MOCOIPFBT00011",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***4248"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-21T18:04:30+03:00",
+      "operationDate": "2026-06-21",
+      "title": "Возврат «Wildberries»",
+      "amount": {
+        "value": 434600,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "INCOME",
+      "operationType": "REFUND",
+      "systemCode": "CARD_REFUND",
+      "mcc": 5399,
+      "operationContent": "Возврат «Wildberries» по карте *5707. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "54EF125A-25BD-A659-9986-48E013D5316F",
+        "id": "-1",
+        "name": "Wildberries"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "INCOME"
+        ]
+      }
+    },
+    {
+      "id": "G260710MOCOIPFBT00007",
+      "operationId": "A4AA07B4-9E63-97D4-B962-45D348BFCBCF",
+      "halfTransactionKey": "G260710MOCOIPFBT00007",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***3371"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-07-10T16:46:31+03:00",
+      "operationDate": "2026-07-10",
+      "title": "Оплата «Иви»",
+      "amount": {
+        "value": 49800,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "SUBSCRIPTION",
+      "systemCode": "RECURRENT_PAYMENT",
+      "mcc": 5968,
+      "operationContent": "Оплата «Иви» по карте *3448. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "B70AF5F2-D5D5-891F-D329-D65C0B35B1DE",
+        "id": "-1",
+        "name": "Иви"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260712MOCOIPFBT00010",
+      "operationId": "D89C36B2-130F-27B2-CF28-F65E408FC146",
+      "halfTransactionKey": "G260712MOCOIPFBT00010",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***5350"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-07-12T22:04:47+03:00",
+      "operationDate": "2026-07-12",
+      "title": "Оплата «Wildberries»",
+      "amount": {
+        "value": 570000,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "POS",
+      "systemCode": "CARD_PAYMENT",
+      "mcc": 5399,
+      "operationContent": "Оплата «Wildberries» по карте *8763. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "348922D7-C1A6-24DC-BAB5-B3733C1AE917",
+        "id": "-1",
+        "name": "Wildberries"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": true,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260714MOCOIPFBT00003",
+      "operationId": "15A0CCE6-0E2E-C40A-29CA-862D6E4505F5",
+      "halfTransactionKey": "G260714MOCOIPFBT00003",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***7240"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-07-14T08:40:47+03:00",
+      "operationDate": "2026-07-14",
+      "title": "Оплата «Иви»",
+      "amount": {
+        "value": 30600,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "SUBSCRIPTION",
+      "systemCode": "RECURRENT_PAYMENT",
+      "mcc": 5968,
+      "operationContent": "Оплата «Иви» по карте *5187. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "F88EDE10-ABA8-B9B3-8185-797CDEDB9109",
+        "id": "-1",
+        "name": "Иви"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260716MOCOIPFBT00001",
+      "operationId": "72723B9C-EF44-C0D5-3EE4-DA5A7989E9D0",
+      "halfTransactionKey": "G260716MOCOIPFBT00001",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***2741"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-07-16T22:35:12+03:00",
+      "operationDate": "2026-07-16",
+      "title": "Оплата «Пятёрочка»",
+      "amount": {
+        "value": 22500,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "POS",
+      "systemCode": "CARD_PAYMENT",
+      "mcc": 5411,
+      "operationContent": "Оплата «Пятёрочка» по карте *9425. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "6EA330A1-A66D-58B5-D1A4-C01EA887AE22",
+        "id": "-1",
+        "name": "Пятёрочка"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": true,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    }
+  ],
+  "user_0005": [
+    {
+      "id": "G260428MOCOIPFBT00000",
+      "operationId": "F8F659AC-44CE-4AB3-7C5D-42DC0F877AE3",
+      "halfTransactionKey": "G260428MOCOIPFBT00000",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***2630"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-04-28T10:00:30+03:00",
+      "operationDate": "2026-04-28",
+      "title": "Комиссия за обслуживание счёта",
+      "amount": {
+        "value": 25800,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "FEE",
+      "systemCode": "ACCOUNT_MAINTENANCE_FEE",
+      "mcc": null,
+      "operationContent": "Комиссия за обслуживание счёта. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "7D575D17-ACFB-2D5E-37BA-C233B1330C3F",
+        "id": "-1",
+        "name": "Альфа-Банк"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260521MOCOIPFBT00002",
+      "operationId": "FE749E67-730F-37F1-FE9E-B4ADF7D5F124",
+      "halfTransactionKey": "G260521MOCOIPFBT00002",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***5401"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-05-21T20:04:52+03:00",
+      "operationDate": "2026-05-21",
+      "title": "Оплата «Пятёрочка»",
+      "amount": {
+        "value": 133600,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "POS",
+      "systemCode": "CARD_PAYMENT",
+      "mcc": 5411,
+      "operationContent": "Оплата «Пятёрочка» по карте *9300. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "F21201E4-EAA3-556C-35B7-E44863087E52",
+        "id": "-1",
+        "name": "Пятёрочка"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": true,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260529MOCOIPFBT00009",
+      "operationId": "ED4142BA-E972-9F3F-0C89-C0017C4EA603",
+      "halfTransactionKey": "G260529MOCOIPFBT00009",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***3085"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-05-29T10:41:55+03:00",
+      "operationDate": "2026-05-29",
+      "title": "Возврат «Wildberries»",
+      "amount": {
+        "value": 533700,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "INCOME",
+      "operationType": "REFUND",
+      "systemCode": "CARD_REFUND",
+      "mcc": 5399,
+      "operationContent": "Возврат «Wildberries» по карте *5689. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "57FA49E5-6A34-B371-78E1-0E702BB71C68",
+        "id": "-1",
+        "name": "Wildberries"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "INCOME"
+        ]
+      }
+    },
+    {
+      "id": "G260530MOCOIPFBT00005",
+      "operationId": "D7196189-1EF3-EA44-50EA-7DA760487E15",
+      "halfTransactionKey": "G260530MOCOIPFBT00005",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***6428"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-05-30T10:26:22+03:00",
+      "operationDate": "2026-05-30",
+      "title": "Комиссия за обслуживание счёта",
+      "amount": {
+        "value": 28500,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "FEE",
+      "systemCode": "ACCOUNT_MAINTENANCE_FEE",
+      "mcc": null,
+      "operationContent": "Комиссия за обслуживание счёта. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "569908F6-C030-1B21-5315-8CE400721F84",
+        "id": "-1",
+        "name": "Альфа-Банк"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260531MOCOIPFBT00006",
+      "operationId": "64950DC2-10A2-5B19-5F49-F0FC40D28406",
+      "halfTransactionKey": "G260531MOCOIPFBT00006",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***7392"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-05-31T06:57:47+03:00",
+      "operationDate": "2026-05-31",
+      "title": "Оплата «Яндекс Плюс»",
+      "amount": {
+        "value": 24900,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "SUBSCRIPTION",
+      "systemCode": "RECURRENT_PAYMENT",
+      "mcc": 5968,
+      "operationContent": "Оплата «Яндекс Плюс» по карте *5748. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "138EFEF9-96D4-480F-DEB6-7AE7FFB0DD9E",
+        "id": "-1",
+        "name": "Яндекс"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260604MOCOIPFBT00004",
+      "operationId": "28B88073-065B-8C35-64E2-76027C73B6C9",
+      "halfTransactionKey": "G260604MOCOIPFBT00004",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***1058"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-04T21:57:56+03:00",
+      "operationDate": "2026-06-04",
+      "title": "Абонентская плата Альфа-Смарт",
+      "amount": {
+        "value": 29900,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "FEE",
+      "systemCode": "SUBSCRIPTION_FEE",
+      "mcc": null,
+      "operationContent": "Абонентская плата Альфа-Смарт. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "736506EC-AE7C-8F09-7DDF-CBC9F3308CE5",
+        "id": "-1",
+        "name": "Альфа-Банк"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260604MOCOIPFBT00007",
+      "operationId": "491E99F5-A977-66FB-D5AD-53600D36CE2C",
+      "halfTransactionKey": "G260604MOCOIPFBT00007",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***3439"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": "30232810***5084"
+      },
+      "dateTime": "2026-06-04T14:54:03+03:00",
+      "operationDate": "2026-06-04",
+      "title": "Пополнение через СБП",
+      "amount": {
+        "value": 10004500,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "INCOME",
+      "operationType": "C2C",
+      "systemCode": "FAST_PAYMENT_SYSTEM_TRANSFER",
+      "mcc": null,
+      "operationContent": "Перевод через Систему быстрых платежей на +7 (941) ***-**-**. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "82CE786F-6FAD-7936-4406-C053F895FC55",
+        "id": "-1",
+        "name": "Другое"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "INCOME"
+        ]
+      }
+    },
+    {
+      "id": "G260610MOCOIPFBT00008",
+      "operationId": "8DDCF83C-F0D1-AB56-E02F-9A72E9D625C9",
+      "halfTransactionKey": "G260610MOCOIPFBT00008",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***9998"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-10T19:56:01+03:00",
+      "operationDate": "2026-06-10",
+      "title": "Оплата «МТС»",
+      "amount": {
+        "value": 73200,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "POS",
+      "systemCode": "CARD_PAYMENT",
+      "mcc": 4814,
+      "operationContent": "Оплата «МТС» по карте *7554. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "0CAA7612-14A0-B00B-B835-E8A534145E87",
+        "id": "-1",
+        "name": "МТС"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": true,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260613MOCOIPFBT00001",
+      "operationId": "8C90473E-E4C7-17FD-FE48-EF631E563408",
+      "halfTransactionKey": "G260613MOCOIPFBT00001",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***4264"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-13T20:29:49+03:00",
+      "operationDate": "2026-06-13",
+      "title": "Комиссия за обслуживание счёта",
+      "amount": {
+        "value": 21700,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "FEE",
+      "systemCode": "ACCOUNT_MAINTENANCE_FEE",
+      "mcc": null,
+      "operationContent": "Комиссия за обслуживание счёта. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "EFAE5D4E-15FA-8B65-FA66-72CD4FC9E918",
+        "id": "-1",
+        "name": "Альфа-Банк"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260614MOCOIPFBT00010",
+      "operationId": "8EACA288-7BB1-D124-4D03-9B723D1926AC",
+      "halfTransactionKey": "G260614MOCOIPFBT00010",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***7461"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-14T14:25:41+03:00",
+      "operationDate": "2026-06-14",
+      "title": "Комиссия за обслуживание счёта",
+      "amount": {
+        "value": 16400,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "FEE",
+      "systemCode": "ACCOUNT_MAINTENANCE_FEE",
+      "mcc": null,
+      "operationContent": "Комиссия за обслуживание счёта. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "296259C8-A4A9-15D0-2AD6-4CE91EA77228",
+        "id": "-1",
+        "name": "Альфа-Банк"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": false,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260624MOCOIPFBT00003",
+      "operationId": "21F267E2-5C0B-B40F-F3E6-CA734305E986",
+      "halfTransactionKey": "G260624MOCOIPFBT00003",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***9335"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-06-24T08:09:47+03:00",
+      "operationDate": "2026-06-24",
+      "title": "Оплата «Wildberries»",
+      "amount": {
+        "value": 506300,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "POS",
+      "systemCode": "CARD_PAYMENT",
+      "mcc": 5399,
+      "operationContent": "Оплата «Wildberries» по карте *9586. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "B40DE56D-1CD8-6FC1-E309-66194791C2E9",
+        "id": "-1",
+        "name": "Wildberries"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": true,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    },
+    {
+      "id": "G260711MOCOIPFBT00011",
+      "operationId": "C25E114F-FF18-FE33-5534-A034E8009D90",
+      "halfTransactionKey": "G260711MOCOIPFBT00011",
+      "account": {
+        "name": "Основной счёт",
+        "number": "40817810***8372"
+      },
+      "beneficiaryAccount": {
+        "name": null,
+        "number": null
+      },
+      "dateTime": "2026-07-11T21:35:14+03:00",
+      "operationDate": "2026-07-11",
+      "title": "Оплата «МТС»",
+      "amount": {
+        "value": 86200,
+        "currency": "RUR",
+        "minorUnits": 100
+      },
+      "direction": "EXPENSE",
+      "operationType": "POS",
+      "systemCode": "CARD_PAYMENT",
+      "mcc": 4814,
+      "operationContent": "Оплата «МТС» по карте *8421. Без НДС.",
+      "cardDetails": {},
+      "merchantDto": {
+        "requestId": "31419775-8C3B-A859-23BC-91526D6B987A",
+        "id": "-1",
+        "name": "МТС"
+      },
+      "operationClass": "POSING",
+      "fee": 0,
+      "isPos": true,
+      "filteringMultiValues": {
+        "accounts": [
+          "40817810***7020"
+        ],
+        "operationSign": [
+          "EXPENSE"
+        ]
+      }
+    }
+  ]
+}
