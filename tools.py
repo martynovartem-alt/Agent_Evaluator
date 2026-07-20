@@ -16,11 +16,19 @@ from functools import lru_cache
 from pathlib import Path
 
 FIXTURES = Path(__file__).parent / "fixtures"
+DATA = Path(__file__).parent / "data"
 
 
 @lru_cache(maxsize=1)
 def _operations() -> dict:
-    return json.loads((FIXTURES / "operations.json").read_text())
+    """Hand-authored fixtures/operations.json merged with the generated data/mcp_fake.json
+    (if present). Users are disjoint (user_alfa vs user_000N); the merge is non-destructive."""
+    merged = json.loads((FIXTURES / "operations.json").read_text())
+    fake = DATA / "mcp_fake.json"
+    if fake.exists():
+        for user, ops in json.loads(fake.read_text()).items():
+            merged.setdefault(user, []).extend(ops)
+    return merged
 
 
 @lru_cache(maxsize=1)

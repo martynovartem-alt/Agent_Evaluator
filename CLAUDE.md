@@ -73,8 +73,10 @@ Agent answers already exist here — used to calibrate the judge, not to run the
 - `getInstruction(names[])` — verified topic explanations (alfaSmart, alfaCheck, …). Results land
   in `trace.chunks[]` (grounding).
 
-Tools read only from `fixtures/` (`operations.json` in the real MCP shape, `instructions.json`)
-— no network, so runs are reproducible. **Amount encoding**: operation `amount = value / minorUnits`
+MCPClear reads `fixtures/operations.json` (hand-authored: `user_alfa`) **merged** with the
+generated `data/mcp_fake.json` (`user_000N`, from `gen_mcp.py`) — disjoint users, non-destructive.
+getInstruction reads `fixtures/instructions.json`. No network, so runs are reproducible.
+**Amount encoding**: operation `amount = value / minorUnits`
 rubles (value is in kopecks — 299 ₽ ⇒ `value: 29900, minorUnits: 100`). Fixture data backs the
 golden cases: `fixture_user`/`planted_operation_id` in `operations.json`, `expected_instruction`
 key in `instructions.json`. Real MCP format reference: `json_answer_history_operations.md`.
