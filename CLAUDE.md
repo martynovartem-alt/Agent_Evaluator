@@ -14,6 +14,12 @@ python3 runner.py --dataset data/golden_mini.jsonl
 python3 runner.py --dataset data/golden_mini.jsonl --case-id txn_001
 ```
 
+**Agent mode** (`AGENT_MODE`): `auto` (default — real Claude agent if `ANTHROPIC_API_KEY`
++ `anthropic` SDK are present, else offline baseline), `llm` (force real agent), `offline`
+(force deterministic baseline). `AGENT_MODEL` overrides the agent model (default `claude-opus-4-8`).
+The offline baseline drives the same real tool layer, so the full pipeline runs and is
+verifiable with no API key.
+
 ## Architecture
 
 ```
@@ -29,7 +35,7 @@ runner → trace per case → [groundedness + resolution + checks] (parallel) �
 
 ## Data flow
 
-1. `runner.py` reads golden_set.jsonl → calls `run_agent()` per case → writes `runs/<ts>/traces/<id>.json`
+1. `runner.py` reads golden_set.jsonl → calls `run_agent()` (in `agent.py`) per case → writes `runs/<ts>/traces/<id>.json`
 2. Per case, 3 evaluations run concurrently via `asyncio.gather`: `checks.run_checks()`, `judges/groundedness.py`, `judges/resolution.py`
 3. `aggregate.py` applies policy → writes `runs/<ts>/report.json` + diff vs previous run
 
@@ -41,13 +47,25 @@ runner → trace per case → [groundedness + resolution + checks] (parallel) �
 **trace** (written per case to `runs/<ts>/traces/`):
 `{case_id, answer, tool_calls[{name, args, result}], chunks[{doc_id, text}]}`
 
-## Agent integration (stub until Phase 2)
+## Agent (agent.py + tools.py)
 
-`run_agent()` in `runner.py` is the stub to replace with the real agent call.
-The support agent has two tools: `get_transactions` (MCP) and FAQ retrieval (chunks).
+`run_agent(case)` dispatches to `run_llm_agent` (Claude, manual tool-use loop) or
+`run_offline_agent` (deterministic baseline). Both drive the same tools in `tools.py`:
+- `get_transactions` — the MCP-served transactions tool. `tools.py` holds the offline
+  fixture adapter; in production it is served over MCP. Swap behind that seam without
+  touching the runner/judges. Calls land in `trace.tool_calls[]`.
+- `retrieve_faq` (agent tool `search_faq`) — FAQ retrieval over `fixtures/faq.json`,
+  deterministic token-overlap scorer. Results land in `trace.chunks[]`.
+
+Tools read only from `fixtures/` (`transactions.json`, `faq.json`) — no network, so runs
+are reproducible. Fixture data must back the golden cases: `fixture_user`/`planted_txn_id`
+in `transactions.json`, `expected_faq_doc` in `faq.json`.
 
 ## Judges (implemented in Phase 4)
 
 Prompts live in `prompts/groundedness.md` and `prompts/resolution.md`.
-Both judges call Claude API at temperature=0 and return structured JSON.
+Both judges call Claude API and return structured JSON.
 Judge stubs return fixed passing values so Phase 1–3 pipeline runs end-to-end.
+
+Note: the spec calls for temperature=0, but `claude-opus-4-8` rejects `temperature` (400).
+Get judge determinism via `output_config.effort` + structured outputs instead — not `temperature`.

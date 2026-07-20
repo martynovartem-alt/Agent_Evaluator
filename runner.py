@@ -9,6 +9,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from agent import run_agent
 from aggregate import aggregate_results
 from checks import run_checks
 from judges.groundedness import judge_groundedness
@@ -23,30 +24,6 @@ def load_cases(path: str) -> list[dict]:
             if line:
                 cases.append(json.loads(line))
     return cases
-
-
-def run_agent(case: dict) -> dict:
-    """Call the support agent and return a captured trace.
-    Phase 2: replace with real agent call.
-    """
-    trace: dict = {
-        "case_id": case["id"],
-        "answer": f"[stub answer for {case['id']}]",
-        "tool_calls": [],
-        "chunks": [],
-    }
-    if case.get("needs_transactions"):
-        trace["tool_calls"].append({
-            "name": "get_transactions",
-            "args": {"user_id": case.get("fixture_user")},
-            "result": {"transactions": []},
-        })
-    if case.get("expected_faq_doc"):
-        trace["chunks"].append({
-            "doc_id": case["expected_faq_doc"],
-            "text": "[stub faq text]",
-        })
-    return trace
 
 
 async def evaluate_case(case: dict, trace: dict) -> dict:
