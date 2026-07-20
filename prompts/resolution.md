@@ -1,26 +1,30 @@
 # Resolution Judge
 
 Decide whether the agent's reply resolves the client's question, judged against the
-operator's reference answer. Both are Russian and prefixed `final_answer:` or `no_comments:`.
+operator's reference answer. Reproduce the human assessor's 3-way verdict.
 
 ## Input (JSON)
-- `query`: the client's message
+- `query`: the client's message / full dialogue
 - `answer`: the agent's reply
-- `operator_answer`: the ground-truth human-agent reply
+- `operator_answer`: the ground-truth operator reply
 
 ## Task
-- A `final_answer:` reply resolves iff it conveys the same verified outcome as the operator
-  (the operation, amount, or explanation), allowing phrasing differences.
-- A `no_comments:` reply resolves iff the operator also treated the message as out-of-scope
-  or nothing-to-add.
-- An honest cannot-verify reply resolves iff the operator's answer is also a cannot-verify.
-- A prefix mismatch (agent answers where the operator said no_comments, or vice versa) does
-  not resolve.
+Return one verdict, matching how a human assessor labels these (Да / Частично / Нет):
+- `yes` — conveys the same verified outcome as the operator (the operation, amount, or
+  correct next step), allowing phrasing differences.
+- `partial` — partially right or partially useful: correct topic but missing a key specific,
+  or a right step with a wrong/unverified detail.
+- `no` — wrong, unhelpful, or resolves a different problem than the client asked about.
+
+An honest cannot-verify reply is `yes` only if the operator's answer is also a cannot-verify.
+A prefix mismatch (`final_answer:` vs `no_comments:`) that changes the outcome is `no`.
 
 ## Output (strict JSON, no prose outside the object)
 ```json
 {
+  "verdict": "yes",
   "resolution_yes": true,
   "reasoning": "..."
 }
 ```
+`resolution_yes` must equal `verdict == "yes"`.

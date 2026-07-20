@@ -4,3 +4,8 @@ __pycache__/
 runs/
 .venv/
 .DS_Store
+
+# Real customer data — keep out of git (use dataset.py to regenerate locally)
+*.xlsx
+MCP_Answer_Json
+data/labeled.jsonl

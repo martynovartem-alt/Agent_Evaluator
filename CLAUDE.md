@@ -16,6 +16,10 @@ python3 runner.py --dataset data/golden_mini.jsonl --case-id subscription_299
 # Tests (deterministic checks + tools; no API key needed) — run one: -k pattern via pytest, or:
 python3 -m unittest discover -s tests -t .
 python3 -m unittest tests.test_checks.TestToolsOk   # single class
+
+# Ground-truth calibration (resolution judge vs human labels)
+python3 dataset.py current_agent_answers.xlsx data/labeled.jsonl   # real data → jsonl (both gitignored)
+python3 calibrate.py --dataset data/labeled.jsonl                  # or data/labeled_sample.jsonl
 ```
 
 **Agent mode** (`AGENT_MODE`): `auto` (default — real Claude agent if `ANTHROPIC_API_KEY`
@@ -54,6 +58,11 @@ Domain: Alfa-Bank transaction-history support agent (Russian; replies prefixed
 **trace** (written per case to `runs/<ts>/traces/`):
 `{case_id, answer, tool_calls[{name, args, result}], chunks[{doc_id, text}]}`
 
+**labeled.jsonl** (ground truth from `current_agent_answers.xlsx`, via `dataset.py`):
+`{id, date, dialogue, agent_answer, operator_answer, human_label, assessor_comment}`
+`human_label` ∈ `yes`/`partial`/`no` (Да/Частично/Нет; blank = unlabeled, skipped).
+Agent answers already exist here — used to calibrate the judge, not to run the agent.
+
 ## Agent (agent.py + tools.py)
 
 `run_agent(case)` dispatches to `run_llm_agent` (Claude, manual tool-use loop, system prompt
@@ -74,7 +83,17 @@ key in `instructions.json`. Real MCP format reference: `json_answer_history_oper
 
 Prompts live in `prompts/groundedness.md` and `prompts/resolution.md`.
 Both judges call Claude API and return structured JSON.
-Judge stubs return fixed passing values so Phase 1–3 pipeline runs end-to-end.
+Judge stubs return fixed passing values so the pipeline runs end-to-end.
+Resolution is **3-way** (`verdict` ∈ yes/partial/no) to match the human labels; `resolution_yes`
+(= verdict=="yes") feeds the policy.
 
 Note: the spec calls for temperature=0, but `claude-opus-4-8` rejects `temperature` (400).
 Get judge determinism via `output_config.effort` + structured outputs instead — not `temperature`.
+
+## Calibration (calibrate.py)
+
+The resolution judge's target is the human `Is agents answer correct?` label. `calibrate.py`
+scores each labeled row's existing agent answer and reports exact-match agreement + a 3×3
+confusion matrix (human × judge). This validates the judge — the "Ground Truth" arm of the
+architecture. Baseline with the always-`yes` stub is ~8% (the `Да` share); the real Phase 4
+judge must beat it.
