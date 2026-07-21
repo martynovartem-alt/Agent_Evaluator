@@ -78,13 +78,14 @@ def _operation(rng: random.Random, when: date, seq: int) -> dict:
 
 
 def generate(seed: int = 7, n_users: int = 5, min_ops: int = 8, max_ops: int = 20,
-             base_date: str = "2026-07-20", window_days: int = 90) -> dict:
+             base_date: str = "2026-07-20", window_days: int = 90, ops_per_user: int | None = None) -> dict:
     rng = random.Random(seed)
     base = date.fromisoformat(base_date)
     dataset = {}
     for u in range(1, n_users + 1):
+        count = ops_per_user if ops_per_user is not None else rng.randint(min_ops, max_ops)
         ops = []
-        for seq in range(rng.randint(min_ops, max_ops)):
+        for seq in range(count):
             when = base - timedelta(days=rng.randint(0, window_days))
             ops.append(_operation(rng, when, seq))
         ops.sort(key=lambda o: o["operationDate"])
@@ -95,12 +96,18 @@ def generate(seed: int = 7, n_users: int = 5, min_ops: int = 8, max_ops: int = 2
 def main() -> None:
     p = argparse.ArgumentParser(description="Generate a fake MCP dataset from real operation names")
     p.add_argument("--users", type=int, default=5)
+    p.add_argument("--ops-per-user", type=int, default=None, help="exact ops per user (else 8–20 random)")
+    p.add_argument("--days", type=int, default=90, help="operations fall within the last N days")
     p.add_argument("--seed", type=int, default=7)
+    p.add_argument("--compact", action="store_true", help="minified JSON (for large datasets)")
     p.add_argument("--out", default="data/mcp_fake.json")
     args = p.parse_args()
-    dataset = generate(seed=args.seed, n_users=args.users)
+    dataset = generate(seed=args.seed, n_users=args.users, window_days=args.days, ops_per_user=args.ops_per_user)
     with open(args.out, "w") as f:
-        json.dump(dataset, f, ensure_ascii=False, indent=2)
+        if args.compact:
+            json.dump(dataset, f, ensure_ascii=False, separators=(",", ":"))
+        else:
+            json.dump(dataset, f, ensure_ascii=False, indent=2)
     total = sum(len(v) for v in dataset.values())
     print(f"wrote {len(dataset)} users, {total} operations to {args.out}")
 

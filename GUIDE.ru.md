@@ -191,7 +191,8 @@ python3 calibrate.py --dataset data/labeled.jsonl
 собранные из эталонных данных (все суммы/даты/счета — вымышленные):
 
 ```bash
-python3 gen_mcp.py --users 5 --seed 7 --out data/mcp_fake.json
+# зафиксированный датасет: 200 клиентов × 200 операций за последние 90 дней
+python3 gen_mcp.py --users 200 --ops-per-user 200 --days 90 --seed 7 --compact --out data/mcp_fake.json
 ```
 
 `MCPClear` объединяет их с фикстурами, написанными вручную, поэтому golden-кейсы могут опираться

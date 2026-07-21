@@ -189,7 +189,8 @@ re-run. (`--all-rows` writes every row; `--csv PATH` overrides the location.)
 from the ground-truth data (all amounts/dates/accounts are fabricated):
 
 ```bash
-python3 gen_mcp.py --users 5 --seed 7 --out data/mcp_fake.json
+# the committed dataset: 200 clients × 200 operations over the last 90 days
+python3 gen_mcp.py --users 200 --ops-per-user 200 --days 90 --seed 7 --compact --out data/mcp_fake.json
 ```
 
 `MCPClear` merges this with the hand-authored fixtures, so golden cases can be backed by these
