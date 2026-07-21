@@ -56,18 +56,19 @@ _DEFAULTS = {
 }
 
 
-def _sdk_present() -> bool:
-    return importlib_util.find_spec("anthropic") is not None
+def _sdk_present(provider: str) -> bool:
+    return importlib_util.find_spec("openai" if provider == "openai" else "anthropic") is not None
 
 
 @dataclass(frozen=True)
 class AgentSpec:
     role: str
+    provider: str      # anthropic | openai (openai = OpenAI-compatible, e.g. DeepSeek)
     mode: str          # auto | llm | offline
-    base_url: str      # "" → Anthropic default endpoint
+    base_url: str      # "" → provider default endpoint
     api_key: str       # resolved from api_key_env / ANTHROPIC_API_KEY
     model: str
-    effort: str        # low | medium | high
+    effort: str        # low | medium | high (Anthropic only)
     prompt: str        # path, relative to repo root
 
     def prompt_text(self) -> str:
@@ -76,7 +77,7 @@ class AgentSpec:
     def available(self) -> bool:
         if self.mode == "offline":
             return False
-        return bool(self.api_key) and _sdk_present()
+        return bool(self.api_key) and _sdk_present(self.provider)
 
 
 def get(role: str) -> AgentSpec:
@@ -85,7 +86,8 @@ def get(role: str) -> AgentSpec:
     api_key = os.getenv(cfg.get("api_key_env") or "") or os.getenv("ANTHROPIC_API_KEY", "")
     mode = os.getenv(f"{role.upper()}_MODE") or cfg.get("mode", "auto")
     return AgentSpec(
-        role=role, mode=mode, base_url=cfg.get("base_url", ""), api_key=api_key,
+        role=role, provider=cfg.get("provider", "anthropic"), mode=mode,
+        base_url=cfg.get("base_url", ""), api_key=api_key,
         model=cfg["model"], effort=cfg.get("effort", "medium"), prompt=cfg["prompt"],
     )
 

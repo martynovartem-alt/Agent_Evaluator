@@ -7,27 +7,34 @@
 # prompt          -> path to the agent's system prompt (swap the file to change the prompt).
 # mode            -> auto (LLM iff a key is available) | llm | offline
 
+# provider: "anthropic" (base_url "" + claude-* model) or "openai" (OpenAI-compatible, e.g. DeepSeek).
+# Currently pointed at DeepSeek. To revert to Claude: provider="anthropic", base_url="",
+# model="claude-opus-4-8", api_key_env="ANTHROPIC_API_KEY".
+
 [agent]                            # the support agent under test (Agent X)
 mode = "auto"
-base_url = ""
-api_key_env = "AGENT_API_KEY"
-model = "claude-opus-4-8"
+provider = "openai"
+base_url = "https://api.deepseek.com"
+api_key_env = "DEEPSEEK_API_KEY"
+model = "deepseek-v4-pro"
 prompt = "agent_prompt_v2.md"      # verbatim production prompt (prompts/agent.md is the derived alt)
 effort = "medium"
 
 [groundedness]                     # knowledge-grounding judge
 mode = "auto"
-base_url = ""
-api_key_env = "JUDGE_API_KEY"
-model = "claude-opus-4-8"
+provider = "openai"
+base_url = "https://api.deepseek.com"
+api_key_env = "DEEPSEEK_API_KEY"
+model = "deepseek-v4-flash"
 prompt = "prompts/groundedness.md"
 effort = "medium"
 
 [resolution]                       # resolution judge (examiner)
 mode = "auto"
-base_url = ""
-api_key_env = "JUDGE_API_KEY"
-model = "claude-opus-4-8"
+provider = "openai"
+base_url = "https://api.deepseek.com"
+api_key_env = "DEEPSEEK_API_KEY"
+model = "deepseek-v4-flash"
 prompt = "prompts/resolution.md"
 effort = "medium"
 

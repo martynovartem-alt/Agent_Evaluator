@@ -31,13 +31,24 @@ class TestAgentSpecs(unittest.TestCase):
         self.assertEqual({config.get(r).role for r in ROLES}, set(ROLES))
 
     def test_api_key_env_resolution_and_fallback(self):
-        os.environ.pop("ANTHROPIC_API_KEY", None)
-        os.environ["JUDGE_API_KEY"] = "sk-judge"
+        env_name = config._RAW["resolution"]["api_key_env"]   # the role's configured key var
+        saved = {k: os.environ.get(k) for k in (env_name, "ANTHROPIC_API_KEY")}
         try:
-            self.assertEqual(config.get("resolution").api_key, "sk-judge")  # from api_key_env
-            self.assertEqual(config.get("agent").api_key, "")               # AGENT_API_KEY unset, no fallback
+            os.environ[env_name] = "sk-role"
+            os.environ.pop("ANTHROPIC_API_KEY", None)
+            self.assertEqual(config.get("resolution").api_key, "sk-role")       # from api_key_env
+            os.environ.pop(env_name, None)
+            os.environ["ANTHROPIC_API_KEY"] = "sk-fallback"
+            self.assertEqual(config.get("resolution").api_key, "sk-fallback")   # fallback
         finally:
-            del os.environ["JUDGE_API_KEY"]
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+
+    def test_provider_field(self):
+        self.assertIn(config.get("agent").provider, {"anthropic", "openai"})
 
     def test_mode_override_via_env(self):
         os.environ["RESOLUTION_MODE"] = "offline"

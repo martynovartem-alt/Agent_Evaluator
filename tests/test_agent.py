@@ -2,7 +2,35 @@
 import unittest
 
 import config
-from agent import build_system
+from agent import _execute_tool, _openai_tools, build_system
+
+
+class TestToolExecution(unittest.TestCase):
+    def test_mcpclear_records_call(self):
+        tool_calls, chunks = [], []
+        res = _execute_tool("MCPClear", {"fromDate": "2026-01-01", "toDate": "2027-01-01"},
+                            "user_alfa", "2026-07-20", tool_calls, chunks)
+        self.assertIn("operations", res)
+        self.assertEqual(tool_calls[0]["name"], "MCPClear")
+
+    def test_mcpclear_defaults_missing_dates(self):
+        tool_calls, chunks = [], []
+        res = _execute_tool("MCPClear", {}, "user_alfa", "2026-07-20", tool_calls, chunks)
+        self.assertIn("operations", res)   # missing dates → 85-day window, no crash
+
+    def test_getinstruction_records_chunk(self):
+        tool_calls, chunks = [], []
+        res = _execute_tool("getInstruction", {"instructionName": ["alfaSmart"]},
+                            "u", "2026-07-20", tool_calls, chunks)
+        self.assertIn("alfaSmart", res)
+        self.assertEqual(chunks[0]["doc_id"], "alfaSmart")
+
+    def test_openai_tools_shape(self):
+        tools = _openai_tools()
+        names = {t["function"]["name"] for t in tools}
+        self.assertEqual(names, {"MCPClear", "getInstruction"})
+        self.assertEqual(tools[0]["type"], "function")
+        self.assertIn("parameters", tools[0]["function"])
 
 
 class TestBuildSystem(unittest.TestCase):

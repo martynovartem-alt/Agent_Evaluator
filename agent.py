@@ -3,8 +3,8 @@ The support agent under test (Alfa-Bank transaction consultant). Produces a trac
     {case_id, answer, tool_calls[{name,args,result}], chunks[{doc_id,text}]}
 
 Two implementations behind one run_agent() dispatcher:
-- run_llm_agent:     real Claude agent (Anthropic API, tool-use loop). System prompt is
-                     prompts/agent.md (derived from agent_prompt_v2.md). Production path.
+- run_llm_agent:     real agent tool-use loop against the endpoint in config.get("agent") —
+                     Anthropic or OpenAI-compatible (e.g. DeepSeek). Production path.
 - run_offline_agent: deterministic baseline that drives the SAME tool layer, so the whole
                      pipeline runs end-to-end with no API key.
 
@@ -12,7 +12,7 @@ Trace mapping (matches the architecture diagram: RAW MCP data + Chunks -> judges
 - MCPClear (history tool) calls        -> tool_calls[]
 - getInstruction (grounding) results   -> chunks[{doc_id: topic_key, text}]
 
-Mode via AGENT_MODE=auto|llm|offline (default auto). Model via AGENT_MODEL.
+Endpoint/model/prompt/provider/mode all come from agents.toml [agent] (see config.py).
 """
 import json
 from datetime import date, timedelta
@@ -70,64 +70,99 @@ def build_system(raw: str, current_date: str, user_id: str) -> str:
     return f"Current date: {current_date}. Current user id: {user_id}.\n\n{raw}"
 
 
-def run_llm_agent(case: dict) -> dict:
-    """Drive Claude through a manual tool-use loop, capturing the trace."""
+def _execute_tool(name: str, args: dict, user_id: str, current_date: str,
+                  tool_calls: list, chunks: list) -> dict:
+    """Run a tool call and record it in the trace (MCPClear → tool_calls, getInstruction → chunks).
+    Missing MCPClear dates default to the 85-day window so a malformed call doesn't return empty."""
+    if name == "MCPClear":
+        frm = args.get("fromDate") or (date.fromisoformat(current_date) - timedelta(days=85)).isoformat()
+        to = args.get("toDate") or (date.fromisoformat(current_date) + timedelta(days=1)).isoformat()
+        result = mcp_clear(user_id, frm, to, args.get("operationAmount"))
+        tool_calls.append({"name": name, "args": dict(args), "result": result})
+        return result
+    if name == "getInstruction":
+        instr = get_instruction(args.get("instructionName", []))
+        chunks.extend({"doc_id": k, "text": v} for k, v in instr.items())
+        return instr
+    return {"error": f"unknown tool {name}"}
+
+
+def _openai_tools() -> list:
+    """TOOLS in OpenAI function-calling format."""
+    return [
+        {"type": "function", "function": {"name": t["name"], "description": t["description"],
+                                          "parameters": t["input_schema"]}}
+        for t in TOOLS
+    ]
+
+
+def _run_anthropic_agent(case: dict, spec) -> dict:
     import anthropic
 
-    spec = config.get("agent")
     client = anthropic.Anthropic(**config.client_kwargs(spec))
-    system = build_system(
-        spec.prompt_text(),
-        case.get("current_date", DEFAULT_DATE),
-        case.get("fixture_user", ""),
-    )
+    uid, cd = case.get("fixture_user", ""), case.get("current_date", DEFAULT_DATE)
+    system = build_system(spec.prompt_text(), cd, uid)
     messages = [{"role": "user", "content": case["query"]}]
-
-    tool_calls: list[dict] = []
-    chunks: list[dict] = []
-    answer = ""
+    tool_calls, chunks, answer = [], [], ""
 
     for _ in range(MAX_TOOL_ITERS):
         response = client.messages.create(
-            model=spec.model,
-            max_tokens=4096,
-            thinking={"type": "adaptive"},
-            system=system,
-            tools=TOOLS,
-            messages=messages,
+            model=spec.model, max_tokens=4096, thinking={"type": "adaptive"},
+            system=system, tools=TOOLS, messages=messages,
         )
-
         if response.stop_reason != "tool_use":
             answer = "".join(b.text for b in response.content if b.type == "text").strip()
             break
-
         messages.append({"role": "assistant", "content": response.content})
         tool_results = []
         for block in response.content:
             if block.type != "tool_use":
                 continue
-            if block.name == "MCPClear":
-                result = mcp_clear(
-                    case.get("fixture_user", ""),
-                    block.input["fromDate"],
-                    block.input["toDate"],
-                    block.input.get("operationAmount"),
-                )
-                tool_calls.append({"name": block.name, "args": dict(block.input), "result": result})
-            elif block.name == "getInstruction":
-                instr = get_instruction(block.input.get("instructionName", []))
-                chunks.extend({"doc_id": k, "text": v} for k, v in instr.items())
-                result = instr
-            else:
-                result = {"error": f"unknown tool {block.name}"}
-            tool_results.append({
-                "type": "tool_result",
-                "tool_use_id": block.id,
-                "content": json.dumps(result, ensure_ascii=False),
-            })
+            result = _execute_tool(block.name, dict(block.input), uid, cd, tool_calls, chunks)
+            tool_results.append({"type": "tool_result", "tool_use_id": block.id,
+                                 "content": json.dumps(result, ensure_ascii=False)})
         messages.append({"role": "user", "content": tool_results})
 
     return {"case_id": case["id"], "answer": answer, "tool_calls": tool_calls, "chunks": chunks}
+
+
+def _run_openai_agent(case: dict, spec) -> dict:
+    from openai import OpenAI
+
+    client = OpenAI(api_key=spec.api_key, base_url=spec.base_url or None)
+    uid, cd = case.get("fixture_user", ""), case.get("current_date", DEFAULT_DATE)
+    system = build_system(spec.prompt_text(), cd, uid)
+    messages = [{"role": "system", "content": system}, {"role": "user", "content": case["query"]}]
+    tools, tool_calls, chunks, answer = _openai_tools(), [], [], ""
+
+    for _ in range(MAX_TOOL_ITERS):
+        resp = client.chat.completions.create(model=spec.model, messages=messages, tools=tools)
+        msg = resp.choices[0].message
+        if not msg.tool_calls:
+            answer = (msg.content or "").strip()
+            break
+        messages.append({
+            "role": "assistant", "content": msg.content or "",
+            "tool_calls": [{"id": tc.id, "type": "function",
+                            "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
+                           for tc in msg.tool_calls],
+        })
+        for tc in msg.tool_calls:
+            try:
+                args = json.loads(tc.function.arguments or "{}")
+            except json.JSONDecodeError:
+                args = {}
+            result = _execute_tool(tc.function.name, args, uid, cd, tool_calls, chunks)
+            messages.append({"role": "tool", "tool_call_id": tc.id,
+                             "content": json.dumps(result, ensure_ascii=False)})
+
+    return {"case_id": case["id"], "answer": answer, "tool_calls": tool_calls, "chunks": chunks}
+
+
+def run_llm_agent(case: dict) -> dict:
+    """Drive the agent through a manual tool-use loop (Anthropic or OpenAI-compatible), per config."""
+    spec = config.get("agent")
+    return _run_openai_agent(case, spec) if spec.provider == "openai" else _run_anthropic_agent(case, spec)
 
 
 def run_offline_agent(case: dict) -> dict:
