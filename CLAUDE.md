@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Step-by-step usage guide: `GUIDE.md` (EN) / `GUIDE.ru.md` (RU).
+
 ## Commands
 
 ```bash
