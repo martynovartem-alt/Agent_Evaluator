@@ -41,13 +41,15 @@ async def evaluate_case(case: dict, trace: dict) -> dict:
     }
 
 
-async def main(dataset_path: str, case_id: str | None = None) -> None:
+async def main(dataset_path: str, case_id: str | None = None, limit: int | None = None) -> None:
     cases = load_cases(dataset_path)
     if case_id:
         cases = [c for c in cases if c["id"] == case_id]
         if not cases:
             print(f"Case {case_id!r} not found in {dataset_path}", file=sys.stderr)
             sys.exit(1)
+    if limit:
+        cases = cases[:limit]
 
     run_dir = Path("runs") / datetime.now().strftime("%Y%m%dT%H%M%S")
     traces_dir = run_dir / "traces"
@@ -71,5 +73,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Agent eval runner")
     parser.add_argument("--dataset", required=True, help="Path to golden_set.jsonl")
     parser.add_argument("--case-id", help="Run a single case by ID")
+    parser.add_argument("--limit", type=int, help="Run only the first N cases")
     args = parser.parse_args()
-    asyncio.run(main(args.dataset, args.case_id))
+    asyncio.run(main(args.dataset, args.case_id, args.limit))
