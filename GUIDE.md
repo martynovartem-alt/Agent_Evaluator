@@ -10,6 +10,29 @@ so you can see the whole pipeline work before plugging in real models.
 
 ---
 
+## Architecture at a glance
+
+```
+        agents.toml + .env ──► config   (per role: endpoint · model · prompt · mode)
+                                  │
+  data/golden_mini.jsonl         ▼
+     (cases) ────────► agent.py ────► TRACE ────► evaluations (run in parallel)
+                        │  tools:    {answer,       ├─ checks.py           (deterministic)
+                        │  MCPClear   tool_calls,   ├─ groundedness judge  (LLM)
+                        │  getInstr.  chunks}       └─ resolution judge    (LLM · yes/partial/no)
+                        ▼                                   │
+               fixtures / live MCP                         ▼
+                                         aggregate.py ──► runs/<ts>/report.json
+                                         policy: solved = resolution yes ∧ grounded ∧ tools_ok
+                                         + printed summary + diff vs previous run
+
+  Calibration (separate entry point):
+    current_agent_answers.xlsx ─► dataset.py ─► data/labeled.jsonl ─► calibrate.py ─► resolution judge
+                                                       └─► agreement % + 3×3 confusion + disagreements.csv
+```
+
+---
+
 ## 1. Install
 
 ```bash
@@ -194,6 +217,21 @@ python3 -m unittest discover -s tests -t .
 ```
 
 Deterministic; no API key needed.
+
+---
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Banner `stub (no LLM)`; `resolution` all `yes` | No API key → judges run as stubs | Set `ANTHROPIC_API_KEY` (or `JUDGE_API_KEY`) in `.env`; check `config.get("resolution").available()` |
+| Agent answers look canned; `mode=llm` seems ignored | Running the offline baseline (no key) | Set a key and `[agent].mode = "llm"` (or `auto`) |
+| `ModuleNotFoundError: anthropic` | `mode=llm` forced but SDK missing | `pip install anthropic` |
+| `RuntimeError: MCP_MODE=live requires the MCP SDK — pip install mcp` | Live MCP without the SDK | `pip install mcp`, or set `[mcp].mode = "fixture"` |
+| `RuntimeError: … requires MCP_COMMAND` / `MCP_SERVER_URL` | Live MCP without connection details | Set `command` (stdio) or `server_url` (http) in `agents.toml [mcp]` |
+| Connection / 401 / 404 from the API | Wrong or non-Anthropic `base_url`, or key↔endpoint mismatch | Leave `base_url = ""` for the default; it must be Anthropic-compatible; ensure the key matches the endpoint |
+| `agents.toml` ignored (defaults used) | Python < 3.11 (no `tomllib`) | Use Python 3.11+ |
+| Live MCP: `KeyError: 'amount'` / wrong amounts | Server tool schema/shape differs | Adapt `_tool_args` in `mcp_client.py`; server must return `{operations:[{…,"amount":{"value","minorUnits"}}]}` (rubles = value/minorUnits) |
 
 ---
 

@@ -10,6 +10,29 @@
 
 ---
 
+## Архитектура вкратце
+
+```
+        agents.toml + .env ──► config   (по роли: эндпоинт · модель · промпт · режим)
+                                  │
+  data/golden_mini.jsonl         ▼
+     (кейсы) ────────► agent.py ────► TRACE ────► оценки (параллельно)
+                        │  инструм.: {answer,       ├─ checks.py           (детерминированно)
+                        │  MCPClear   tool_calls,   ├─ groundedness judge  (LLM)
+                        │  getInstr.  chunks}       └─ resolution judge    (LLM · yes/partial/no)
+                        ▼                                   │
+             фикстуры / live MCP                           ▼
+                                         aggregate.py ──► runs/<ts>/report.json
+                                         политика: solved = resolution yes ∧ grounded ∧ tools_ok
+                                         + печать сводки + сравнение с прошлым прогоном
+
+  Калибровка (отдельная точка входа):
+    current_agent_answers.xlsx ─► dataset.py ─► data/labeled.jsonl ─► calibrate.py ─► resolution judge
+                                                       └─► процент согласия + матрица 3×3 + disagreements.csv
+```
+
+---
+
 ## 1. Установка
 
 ```bash
@@ -196,6 +219,21 @@ python3 -m unittest discover -s tests -t .
 ```
 
 Детерминированно; API-ключ не нужен.
+
+---
+
+## Устранение неполадок
+
+| Симптом | Причина | Решение |
+|---|---|---|
+| Баннер `stub (no LLM)`; `resolution` везде `yes` | Нет API-ключа → судьи работают как заглушки | Задайте `ANTHROPIC_API_KEY` (или `JUDGE_API_KEY`) в `.env`; проверьте `config.get("resolution").available()` |
+| Ответы агента шаблонные; `mode=llm` будто игнорируется | Работает офлайн-базлайн (нет ключа) | Задайте ключ и `[agent].mode = "llm"` (или `auto`) |
+| `ModuleNotFoundError: anthropic` | Принудительный `mode=llm`, но SDK не установлен | `pip install anthropic` |
+| `RuntimeError: MCP_MODE=live requires the MCP SDK — pip install mcp` | Live-MCP без SDK | `pip install mcp` или `[mcp].mode = "fixture"` |
+| `RuntimeError: … requires MCP_COMMAND` / `MCP_SERVER_URL` | Live-MCP без данных подключения | Задайте `command` (stdio) или `server_url` (http) в `agents.toml [mcp]` |
+| Ошибка соединения / 401 / 404 от API | Неверный или не-Anthropic `base_url`, либо ключ не соответствует эндпоинту | Оставьте `base_url = ""` для значения по умолчанию; он должен быть Anthropic-совместимым; ключ должен подходить к эндпоинту |
+| `agents.toml` игнорируется (берутся значения по умолчанию) | Python < 3.11 (нет `tomllib`) | Используйте Python 3.11+ |
+| Live-MCP: `KeyError: 'amount'` / неверные суммы | Схема/формат инструмента сервера отличается | Подгоните `_tool_args` в `mcp_client.py`; сервер должен возвращать `{operations:[{…,"amount":{"value","minorUnits"}}]}` (рубли = value/minorUnits) |
 
 ---
 
