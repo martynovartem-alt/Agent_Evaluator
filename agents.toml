@@ -1,0 +1,43 @@
+# Per-agent LLM configuration for the eval pipeline.
+# Each [section] is one LLM role. Set its endpoint, model, and prompt independently.
+#
+# base_url  = ""  -> Anthropic default endpoint (must be an Anthropic-compatible endpoint).
+# api_key_env     -> name of the env var holding this agent's key (falls back to ANTHROPIC_API_KEY),
+#                    so secrets stay in the environment, not this file.
+# prompt          -> path to the agent's system prompt (swap the file to change the prompt).
+# mode            -> auto (LLM iff a key is available) | llm | offline
+
+[agent]                            # the support agent under test (Agent X)
+mode = "auto"
+base_url = ""
+api_key_env = "AGENT_API_KEY"
+model = "claude-opus-4-8"
+prompt = "prompts/agent.md"
+effort = "medium"
+
+[groundedness]                     # knowledge-grounding judge
+mode = "auto"
+base_url = ""
+api_key_env = "JUDGE_API_KEY"
+model = "claude-opus-4-8"
+prompt = "prompts/groundedness.md"
+effort = "medium"
+
+[resolution]                       # resolution judge (examiner)
+mode = "auto"
+base_url = ""
+api_key_env = "JUDGE_API_KEY"
+model = "claude-opus-4-8"
+prompt = "prompts/resolution.md"
+effort = "medium"
+
+[mcp]                              # transaction tool backend (MCPClear)
+mode = "fixture"                   # fixture | live
+transport = "stdio"                # stdio | http
+server_url = ""
+command = ""
+tool_name = "get_transactions"
+auth_token = ""
+
+[pipeline]
+concurrency = 6                    # calibrate fan-out

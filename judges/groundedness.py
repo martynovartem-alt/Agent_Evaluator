@@ -4,6 +4,7 @@ Reads ONLY the trace context (answer + tool_calls + chunks) plus the client quer
 the operator answer (that is resolution's job) and never live tools.
 Prompt: prompts/groundedness.md. Falls back to a stub when no judge LLM is available.
 """
+import config
 from judges import _llm
 
 _SCHEMA = {
@@ -36,10 +37,11 @@ def _result(has_claim: bool, claims: list, reasoning: str) -> dict:
 
 
 async def judge_groundedness(case: dict, trace: dict) -> dict:
-    if not _llm.available():
+    spec = config.get("groundedness")
+    if not spec.available():
         return _result(False, [], "[stub — no judge LLM]")
     try:
-        out = await _llm.judge_json(_llm.load_prompt("groundedness.md"), _payload(case, trace), _SCHEMA)
+        out = await _llm.judge_json(spec, spec.prompt_text(), _payload(case, trace), _SCHEMA)
         return _result(
             bool(out["has_unsupported_critical_claim"]),
             out.get("unsupported_claims", []),

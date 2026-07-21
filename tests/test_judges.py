@@ -1,9 +1,8 @@
 """Judge payload contract, result shaping, and offline stub fallback (no API calls)."""
 import asyncio
-import os
 import unittest
 
-from judges import _llm
+import config
 from judges.groundedness import _payload as g_payload
 from judges.groundedness import judge_groundedness
 from judges.resolution import _payload as r_payload
@@ -35,11 +34,12 @@ class TestShaping(unittest.TestCase):
 
 class TestOfflineFallback(unittest.TestCase):
     def setUp(self):
-        if os.getenv("ANTHROPIC_API_KEY"):
-            self.skipTest("API key present — fallback path not exercised")
+        if config.get("resolution").available():
+            self.skipTest("judge LLM available — fallback path not exercised")
 
     def test_available_false(self):
-        self.assertFalse(_llm.available())
+        self.assertFalse(config.get("resolution").available())
+        self.assertFalse(config.get("groundedness").available())
 
     def test_resolution_stub_shape(self):
         r = asyncio.run(judge_resolution({"query": "q", "operator_answer": "o"}, {"answer": "a"}))

@@ -22,23 +22,28 @@ python3 dataset.py current_agent_answers.xlsx data/labeled.jsonl   # real data �
 python3 calibrate.py --dataset data/labeled.jsonl                  # or data/labeled_sample.jsonl
 ```
 
-## Configuration (config.py / .env)
+## Configuration — per-agent (agents.toml + config.py)
 
-All API + MCP integration settings live in `config.py`, read from env or a local `.env`
-(copy `.env.example` → `.env`; gitignored; real env vars win). Everything defaults to the
-offline path, so the pipeline runs with no key.
+Each LLM role in the pipeline is configured **independently** in `agents.toml`: its own
+`base_url` (endpoint), `model`, `prompt`, `effort`, and `mode`. Three roles:
+`[agent]` (system under test), `[groundedness]`, `[resolution]`. Plus `[mcp]` (tool backend)
+and `[pipeline]`. Secrets stay in env — each role's `api_key_env` names its key var (falls back
+to `ANTHROPIC_API_KEY`); a local `.env` (from `.env.example`, gitignored) is loaded for convenience.
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | — | Enables the LLM agent + real judges |
-| `AGENT_MODE` / `AGENT_MODEL` | `auto` / `claude-opus-4-8` | Agent: auto (LLM iff key) \| llm \| offline |
-| `JUDGE_MODE` / `JUDGE_MODEL` / `JUDGE_EFFORT` | `auto` / `claude-opus-4-8` / `medium` | Judges (auto \| llm \| offline) |
-| `JUDGE_CONCURRENCY` | `6` | calibrate fan-out |
-| `MCP_MODE` | `fixture` | `fixture` (local data) \| `live` (real MCP server) |
-| `MCP_TRANSPORT` / `MCP_SERVER_URL` / `MCP_COMMAND` / `MCP_TOOL_NAME` / `MCP_AUTH_TOKEN` | `stdio` / … | Live MCP connection (see `mcp_client.py`) |
+```python
+import config
+spec = config.get("resolution")   # AgentSpec(base_url, api_key, model, effort, prompt, mode)
+spec.available()                  # LLM usable for this role?
+spec.prompt_text()                # this role's system prompt
+anthropic.Anthropic(**config.client_kwargs(spec))   # client at this role's endpoint/key
+```
 
-`MCP_MODE=live` routes `MCPClear` through `mcp_client.py` (needs `pip install mcp`); adapt
-`_tool_args` there to your server's tool schema. `config.api_available()` gates the LLM paths.
+Point a role at a different endpoint/model/prompt by editing its section — e.g. run the agent
+under test on one deployment and the judges on another. `base_url` must be Anthropic-compatible.
+Env overrides: `EVAL_CONFIG` (config path), `{ROLE}_MODE` (`AGENT_MODE`/`GROUNDEDNESS_MODE`/
+`RESOLUTION_MODE`), `MCP_*`, `JUDGE_CONCURRENCY`. `mode=auto` → LLM iff a key is present, else the
+offline path — so everything runs with no key. `MCP_MODE=live` routes `MCPClear` through
+`mcp_client.py` (needs `pip install mcp`); adapt `_tool_args` to your server's tool schema.
 
 ## Architecture
 

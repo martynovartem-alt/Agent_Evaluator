@@ -18,7 +18,6 @@ from datetime import datetime
 from pathlib import Path
 
 import config
-from judges import _llm
 from judges.resolution import judge_resolution
 
 LABELS = ["yes", "partial", "no"]
@@ -80,7 +79,8 @@ def write_csv(records: list[dict], path: Path, all_rows: bool = False) -> int:
 
 async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = False) -> None:
     rows = [r for r in load(dataset_path) if r.get("human_label") in LABELS]
-    judge = f"LLM ({config.JUDGE_MODEL}, effort {config.JUDGE_EFFORT})" if _llm.available() else "stub (no LLM)"
+    spec = config.get("resolution")
+    judge = f"LLM ({spec.model}, effort {spec.effort})" if spec.available() else "stub (no LLM)"
     print(f"judge: {judge}")
 
     sem = asyncio.Semaphore(config.JUDGE_CONCURRENCY)

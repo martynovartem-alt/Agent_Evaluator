@@ -1,49 +1,33 @@
 """
-Shared Claude client for the judges.
+Shared Claude caller for the judges — one client per (endpoint, key) so each agent/role can
+point at a different LLM endpoint.
 
-- Structured JSON output via output_config.format (json_schema) — guarantees a parseable object.
-- Determinism/cost via output_config.effort (opus-4-8 rejects `temperature`, so we don't send it).
-- Async client so a case's two judges run concurrently.
-
-Env: JUDGE_MODEL (default claude-opus-4-8), JUDGE_EFFORT (low|medium|high, default medium),
-JUDGE_MODE (auto|llm|offline — offline forces the stub fallback in the judges).
+- Structured JSON output via output_config.format (json_schema) — guaranteed-parseable object.
+- Determinism/cost via output_config.effort (opus-4-8 rejects `temperature`).
+The system prompt, model, effort, endpoint, and key all come from the role's config.AgentSpec.
 """
 import json
-from pathlib import Path
 
 import config
 
-PROMPTS = Path(__file__).parent.parent / "prompts"
-
-_client = None
+_clients: dict[tuple, object] = {}
 
 
-def available() -> bool:
-    """True iff the real judge LLM can be used (mode not offline, key set, SDK importable)."""
-    if config.JUDGE_MODE == "offline":
-        return False
-    return config.api_available()
-
-
-def load_prompt(name: str) -> str:
-    return (PROMPTS / name).read_text()
-
-
-def _get_client():
-    global _client
-    if _client is None:
+def _client_for(spec: "config.AgentSpec"):
+    key = (spec.base_url, spec.api_key)
+    if key not in _clients:
         import anthropic
-        _client = anthropic.AsyncAnthropic()
-    return _client
+        _clients[key] = anthropic.AsyncAnthropic(**config.client_kwargs(spec))
+    return _clients[key]
 
 
-async def judge_json(system: str, payload: dict, schema: dict) -> dict:
-    """Send payload (as JSON) under `system`, constrain output to `schema`, return the parsed object."""
-    response = await _get_client().messages.create(
-        model=config.JUDGE_MODEL,
+async def judge_json(spec: "config.AgentSpec", system: str, payload: dict, schema: dict) -> dict:
+    """Send payload (as JSON) under `system` to the role's endpoint; constrain output to `schema`."""
+    response = await _client_for(spec).messages.create(
+        model=spec.model,
         max_tokens=1024,
         system=system,
-        output_config={"effort": config.JUDGE_EFFORT, "format": {"type": "json_schema", "schema": schema}},
+        output_config={"effort": spec.effort, "format": {"type": "json_schema", "schema": schema}},
         messages=[{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
     )
     text = next(b.text for b in response.content if b.type == "text")

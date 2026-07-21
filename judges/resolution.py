@@ -4,6 +4,7 @@ Resolution judge: did the agent answer resolve the client's query?
 Compared against operator_answer (ground truth); reads the trace answer, never live tools.
 Prompt: prompts/resolution.md. Falls back to a stub when no judge LLM is available.
 """
+import config
 from judges import _llm
 
 _SCHEMA = {
@@ -31,10 +32,11 @@ def _shape(verdict: str, reasoning: str) -> dict:
 
 
 async def judge_resolution(case: dict, trace: dict) -> dict:
-    if not _llm.available():
+    spec = config.get("resolution")
+    if not spec.available():
         return _shape("yes", "[stub — no judge LLM]")
     try:
-        out = await _llm.judge_json(_llm.load_prompt("resolution.md"), _payload(case, trace), _SCHEMA)
+        out = await _llm.judge_json(spec, spec.prompt_text(), _payload(case, trace), _SCHEMA)
         verdict = out["verdict"] if out.get("verdict") in ("yes", "partial", "no") else "no"
         return _shape(verdict, out.get("reasoning", ""))
     except Exception as e:

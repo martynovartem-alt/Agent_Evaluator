@@ -16,14 +16,12 @@ Mode via AGENT_MODE=auto|llm|offline (default auto). Model via AGENT_MODEL.
 """
 import json
 from datetime import date, timedelta
-from pathlib import Path
 
 import config
 from tools import get_instruction, mcp_clear, rubles
 
 MAX_TOOL_ITERS = 6
 DEFAULT_DATE = "2026-07-20"
-_PROMPT = (Path(__file__).parent / "prompts" / "agent.md").read_text()
 
 TOOLS = [
     {
@@ -64,8 +62,9 @@ def run_llm_agent(case: dict) -> dict:
     """Drive Claude through a manual tool-use loop, capturing the trace."""
     import anthropic
 
-    client = anthropic.Anthropic()
-    system = _PROMPT.format(
+    spec = config.get("agent")
+    client = anthropic.Anthropic(**config.client_kwargs(spec))
+    system = spec.prompt_text().format(
         current_date=case.get("current_date", DEFAULT_DATE),
         user_id=case.get("fixture_user", ""),
     )
@@ -77,7 +76,7 @@ def run_llm_agent(case: dict) -> dict:
 
     for _ in range(MAX_TOOL_ITERS):
         response = client.messages.create(
-            model=config.AGENT_MODEL,
+            model=spec.model,
             max_tokens=4096,
             thinking={"type": "adaptive"},
             system=system,
@@ -159,8 +158,9 @@ def run_offline_agent(case: dict) -> dict:
 
 def run_agent(case: dict) -> dict:
     """Dispatch to the LLM agent or the offline baseline (see module docstring)."""
-    if config.AGENT_MODE == "offline":
+    spec = config.get("agent")
+    if spec.mode == "offline":
         return run_offline_agent(case)
-    if config.AGENT_MODE == "llm":
+    if spec.mode == "llm":
         return run_llm_agent(case)
-    return run_llm_agent(case) if config.api_available() else run_offline_agent(case)
+    return run_llm_agent(case) if spec.available() else run_offline_agent(case)
