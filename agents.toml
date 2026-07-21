@@ -12,7 +12,7 @@ mode = "auto"
 base_url = ""
 api_key_env = "AGENT_API_KEY"
 model = "claude-opus-4-8"
-prompt = "prompts/agent.md"
+prompt = "agent_prompt_v2.md"      # verbatim production prompt (prompts/agent.md is the derived alt)
 effort = "medium"
 
 [groundedness]                     # knowledge-grounding judge

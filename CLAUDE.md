@@ -54,7 +54,7 @@ runner → trace per case → [groundedness + resolution + checks] (parallel) �
 ```
 
 Domain: Alfa-Bank transaction-history support agent (Russian; replies prefixed
-`final_answer:` / `no_comments:`). Real agent prompt: `agent_prompt_v2.md` → `prompts/agent.md`.
+`final_answer:` / `no_comments:`). Real agent prompt: `agent_prompt_v2.md` (used verbatim by `[agent]`; `prompts/agent.md` is a derived alt).
 
 **Fixed constraints — do not redesign:**
 - Judges read ONLY the captured trace, never live tools
@@ -88,7 +88,8 @@ Agent answers already exist here — used to calibrate the judge, not to run the
 ## Agent (agent.py + tools.py)
 
 `run_agent(case)` dispatches to `run_llm_agent` (Claude, manual tool-use loop, system prompt
-`prompts/agent.md`) or `run_offline_agent` (deterministic baseline). Both drive the same tools:
+`agent_prompt_v2.md` verbatim via `build_system`; `prompts/agent.md` is a derived alt) or
+`run_offline_agent` (deterministic baseline). Both drive the same tools:
 - `MCPClear(user, fromDate, toDate, operationAmount?)` — the MCP-served history tool. `tools.py`
   holds the offline fixture adapter; in production it is served over MCP. Swap behind that seam
   without touching the runner/judges. Calls land in `trace.tool_calls[]` (RAW MCP data).

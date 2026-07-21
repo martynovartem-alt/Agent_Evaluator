@@ -58,15 +58,28 @@ def format_rub(amount: dict) -> str:
     return f"{r:,.2f}".replace(",", " ").replace(".", ",")
 
 
+def build_system(raw: str, current_date: str, user_id: str) -> str:
+    """Inject runtime context into the agent's system prompt.
+
+    Prompts that declare {current_date}/{user_id} (e.g. prompts/agent.md) are filled in place;
+    a verbatim prompt without them (e.g. agent_prompt_v2.md) gets a prepended context header.
+    Uses str.replace, never .format, so literal braces in the prompt are safe.
+    """
+    if "{current_date}" in raw or "{user_id}" in raw:
+        return raw.replace("{current_date}", current_date).replace("{user_id}", user_id)
+    return f"Current date: {current_date}. Current user id: {user_id}.\n\n{raw}"
+
+
 def run_llm_agent(case: dict) -> dict:
     """Drive Claude through a manual tool-use loop, capturing the trace."""
     import anthropic
 
     spec = config.get("agent")
     client = anthropic.Anthropic(**config.client_kwargs(spec))
-    system = spec.prompt_text().format(
-        current_date=case.get("current_date", DEFAULT_DATE),
-        user_id=case.get("fixture_user", ""),
+    system = build_system(
+        spec.prompt_text(),
+        case.get("current_date", DEFAULT_DATE),
+        case.get("fixture_user", ""),
     )
     messages = [{"role": "user", "content": case["query"]}]
 

@@ -114,7 +114,7 @@ The pipeline has three LLM roles, each configured **independently** in `agents.t
 [agent]                       # the support agent under test
 base_url = ""                 # its LLM endpoint ("" = Anthropic default)
 model    = "claude-opus-4-8"
-prompt   = "prompts/agent.md" # its system prompt (swap the file to change it)
+prompt   = "agent_prompt_v2.md" # its system prompt (swap the file to change it)
 effort   = "medium"
 mode     = "auto"             # auto | llm | offline
 api_key_env = "AGENT_API_KEY" # env var holding its key

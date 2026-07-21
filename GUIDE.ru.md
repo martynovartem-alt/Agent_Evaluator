@@ -115,7 +115,7 @@ Cases:
 [agent]                       # проверяемый агент поддержки
 base_url = ""                 # его LLM-эндпоинт ("" = эндпоинт Anthropic по умолчанию)
 model    = "claude-opus-4-8"
-prompt   = "prompts/agent.md" # его системный промпт (замените файл, чтобы изменить)
+prompt   = "agent_prompt_v2.md" # его системный промпт (замените файл, чтобы изменить)
 effort   = "medium"
 mode     = "auto"             # auto | llm | offline
 api_key_env = "AGENT_API_KEY" # переменная окружения с его ключом
