@@ -102,5 +102,10 @@ Determinism comes from `effort` + structured outputs — not `temperature`.
 The resolution judge's target is the human `Is agents answer correct?` label. `calibrate.py`
 scores each labeled row's existing agent answer and reports exact-match agreement + a 3×3
 confusion matrix (human × judge). This validates the judge — the "Ground Truth" arm of the
-architecture. Baseline with the always-`yes` stub is ~8% (the `Да` share); the real Phase 4
-judge must beat it.
+architecture. Baseline with the always-`yes` stub is ~8% (the `Да` share); the real judge
+must beat it.
+
+It also writes `runs/<ts>/disagreements.csv` (id, human_label, verdict, agree, judge reasoning,
+agent/operator answers, dialogue, assessor_comment) — judge reasoning next to the human comment,
+for prompt-tuning. `--all-rows` writes every row; `--csv PATH` overrides the location.
+UTF-8-BOM so Excel renders the Cyrillic.

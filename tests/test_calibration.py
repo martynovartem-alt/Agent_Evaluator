@@ -1,8 +1,18 @@
 """Ground-truth ingestion + calibration math."""
+import csv
+import tempfile
 import unittest
+from pathlib import Path
 
-from calibrate import summarize
+from calibrate import CSV_FIELDS, select_rows, summarize, write_csv
 from dataset import norm_label
+
+_RECORDS = [
+    {"id": "a", "human_label": "yes", "verdict": "yes", "reasoning": "", "agent_answer": "",
+     "operator_answer": "", "dialogue": "", "assessor_comment": ""},
+    {"id": "b", "human_label": "no", "verdict": "yes", "reasoning": "wrong", "agent_answer": "x",
+     "operator_answer": "", "dialogue": "line1\nline2", "assessor_comment": ""},
+]
 
 
 class TestNormLabel(unittest.TestCase):
@@ -31,6 +41,24 @@ class TestSummarize(unittest.TestCase):
 
     def test_empty(self):
         self.assertEqual(summarize([])["agreement"], 0.0)
+
+
+class TestDisagreementCsv(unittest.TestCase):
+    def test_select_only_disagreements_by_default(self):
+        self.assertEqual([r["id"] for r in select_rows(_RECORDS)], ["b"])
+        self.assertEqual([r["id"] for r in select_rows(_RECORDS, all_rows=True)], ["a", "b"])
+
+    def test_write_csv_header_rows_and_agree_column(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "out.csv"
+            n = write_csv(_RECORDS, path)
+            self.assertEqual(n, 1)  # only the disagreement
+            with open(path, encoding="utf-8-sig", newline="") as f:
+                rows = list(csv.DictReader(f))
+            self.assertEqual(list(rows[0].keys()), CSV_FIELDS)
+            self.assertEqual(rows[0]["id"], "b")
+            self.assertEqual(rows[0]["agree"], "False")
+            self.assertIn("line1\nline2", rows[0]["dialogue"])  # multiline survives round-trip
 
 
 if __name__ == "__main__":
