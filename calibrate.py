@@ -14,10 +14,10 @@ import argparse
 import asyncio
 import csv
 import json
-import os
 from datetime import datetime
 from pathlib import Path
 
+import config
 from judges import _llm
 from judges.resolution import judge_resolution
 
@@ -80,9 +80,10 @@ def write_csv(records: list[dict], path: Path, all_rows: bool = False) -> int:
 
 async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = False) -> None:
     rows = [r for r in load(dataset_path) if r.get("human_label") in LABELS]
-    print(f"judge: {'LLM (' + _llm.MODEL + ', effort ' + _llm.EFFORT + ')' if _llm.available() else 'stub (no LLM)'}")
+    judge = f"LLM ({config.JUDGE_MODEL}, effort {config.JUDGE_EFFORT})" if _llm.available() else "stub (no LLM)"
+    print(f"judge: {judge}")
 
-    sem = asyncio.Semaphore(int(os.getenv("JUDGE_CONCURRENCY", "6")))
+    sem = asyncio.Semaphore(config.JUDGE_CONCURRENCY)
 
     async def scored(row):
         async with sem:

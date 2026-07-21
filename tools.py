@@ -15,6 +15,8 @@ import json
 from functools import lru_cache
 from pathlib import Path
 
+import config
+
 FIXTURES = Path(__file__).parent / "fixtures"
 DATA = Path(__file__).parent / "data"
 
@@ -52,15 +54,18 @@ def _summary(ops: list[dict]) -> dict:
 def mcp_clear(user_id: str, from_date: str, to_date: str, operation_amount: int | None = None) -> dict:
     """Transaction history for [from_date, to_date) (yyyy-MM-dd; to_date exclusive).
 
-    operation_amount (whole rubles) optionally filters to operations of exactly that value.
+    config.MCP_MODE selects the backend: "fixture" (default) reads the local datasets;
+    "live" calls a real MCP server via mcp_client. operation_amount (whole rubles) optionally
+    filters to operations of exactly that value.
     Returns {operations[], summary{operationsCount, totalExpense, totalIncome}}.
     """
-    ops = [
-        o for o in _operations().get(user_id, [])
-        if from_date <= o["operationDate"] < to_date
-    ]
-    if operation_amount is not None:
-        ops = [o for o in ops if rubles(o["amount"]) == operation_amount]
+    if config.MCP_MODE == "live":
+        from mcp_client import fetch_operations
+        ops = fetch_operations(user_id, from_date, to_date, operation_amount)
+    else:
+        ops = [o for o in _operations().get(user_id, []) if from_date <= o["operationDate"] < to_date]
+        if operation_amount is not None:
+            ops = [o for o in ops if rubles(o["amount"]) == operation_amount]
     return {"operations": ops, "summary": _summary(ops)}
 
 

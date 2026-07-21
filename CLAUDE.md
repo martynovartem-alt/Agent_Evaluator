@@ -22,11 +22,23 @@ python3 dataset.py current_agent_answers.xlsx data/labeled.jsonl   # real data �
 python3 calibrate.py --dataset data/labeled.jsonl                  # or data/labeled_sample.jsonl
 ```
 
-**Agent mode** (`AGENT_MODE`): `auto` (default — real Claude agent if `ANTHROPIC_API_KEY`
-+ `anthropic` SDK are present, else offline baseline), `llm` (force real agent), `offline`
-(force deterministic baseline). `AGENT_MODEL` overrides the agent model (default `claude-opus-4-8`).
-The offline baseline drives the same real tool layer, so the full pipeline runs and is
-verifiable with no API key.
+## Configuration (config.py / .env)
+
+All API + MCP integration settings live in `config.py`, read from env or a local `.env`
+(copy `.env.example` → `.env`; gitignored; real env vars win). Everything defaults to the
+offline path, so the pipeline runs with no key.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | — | Enables the LLM agent + real judges |
+| `AGENT_MODE` / `AGENT_MODEL` | `auto` / `claude-opus-4-8` | Agent: auto (LLM iff key) \| llm \| offline |
+| `JUDGE_MODE` / `JUDGE_MODEL` / `JUDGE_EFFORT` | `auto` / `claude-opus-4-8` / `medium` | Judges (auto \| llm \| offline) |
+| `JUDGE_CONCURRENCY` | `6` | calibrate fan-out |
+| `MCP_MODE` | `fixture` | `fixture` (local data) \| `live` (real MCP server) |
+| `MCP_TRANSPORT` / `MCP_SERVER_URL` / `MCP_COMMAND` / `MCP_TOOL_NAME` / `MCP_AUTH_TOKEN` | `stdio` / … | Live MCP connection (see `mcp_client.py`) |
+
+`MCP_MODE=live` routes `MCPClear` through `mcp_client.py` (needs `pip install mcp`); adapt
+`_tool_args` there to your server's tool schema. `config.api_available()` gates the LLM paths.
 
 ## Architecture
 

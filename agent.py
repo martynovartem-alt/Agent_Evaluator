@@ -15,13 +15,12 @@ Trace mapping (matches the architecture diagram: RAW MCP data + Chunks -> judges
 Mode via AGENT_MODE=auto|llm|offline (default auto). Model via AGENT_MODEL.
 """
 import json
-import os
 from datetime import date, timedelta
 from pathlib import Path
 
+import config
 from tools import get_instruction, mcp_clear, rubles
 
-MODEL = os.getenv("AGENT_MODEL", "claude-opus-4-8")
 MAX_TOOL_ITERS = 6
 DEFAULT_DATE = "2026-07-20"
 _PROMPT = (Path(__file__).parent / "prompts" / "agent.md").read_text()
@@ -61,14 +60,6 @@ def format_rub(amount: dict) -> str:
     return f"{r:,.2f}".replace(",", " ").replace(".", ",")
 
 
-def _anthropic_available() -> bool:
-    try:
-        import anthropic  # noqa: F401
-        return True
-    except ImportError:
-        return False
-
-
 def run_llm_agent(case: dict) -> dict:
     """Drive Claude through a manual tool-use loop, capturing the trace."""
     import anthropic
@@ -86,7 +77,7 @@ def run_llm_agent(case: dict) -> dict:
 
     for _ in range(MAX_TOOL_ITERS):
         response = client.messages.create(
-            model=MODEL,
+            model=config.AGENT_MODEL,
             max_tokens=4096,
             thinking={"type": "adaptive"},
             system=system,
@@ -168,11 +159,8 @@ def run_offline_agent(case: dict) -> dict:
 
 def run_agent(case: dict) -> dict:
     """Dispatch to the LLM agent or the offline baseline (see module docstring)."""
-    mode = os.getenv("AGENT_MODE", "auto")
-    if mode == "offline":
+    if config.AGENT_MODE == "offline":
         return run_offline_agent(case)
-    if mode == "llm":
+    if config.AGENT_MODE == "llm":
         return run_llm_agent(case)
-    if os.getenv("ANTHROPIC_API_KEY") and _anthropic_available():
-        return run_llm_agent(case)
-    return run_offline_agent(case)
+    return run_llm_agent(case) if config.api_available() else run_offline_agent(case)
