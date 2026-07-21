@@ -48,7 +48,10 @@ Domain: Alfa-Bank transaction-history support agent (Russian; replies prefixed
 
 1. `runner.py` reads golden_set.jsonl → calls `run_agent()` (in `agent.py`) per case → writes `runs/<ts>/traces/<id>.json`
 2. Per case, 3 evaluations run concurrently via `asyncio.gather`: `checks.run_checks()`, `judges/groundedness.py`, `judges/resolution.py`
-3. `aggregate.py` applies policy → writes `runs/<ts>/report.json` + diff vs previous run
+3. `aggregate.py` applies policy → `runs/<ts>/report.json` (`{pct_solved, metrics{pct_must_facts,
+   pct_tools_ok, pct_grounded, pct_instruction_ok, pct_planted_operation_ok, resolution_verdicts},
+   cases[], diff}`; instruction/planted are gated to applicable cases) → prints a readable summary
+   via `format_report`; diff vs the previous run's report
 
 ## Schemas
 

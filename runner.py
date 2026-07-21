@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 from agent import run_agent
-from aggregate import aggregate_results
+from aggregate import aggregate_results, format_report
 from checks import run_checks
 from judges.groundedness import judge_groundedness
 from judges.resolution import judge_resolution
@@ -64,7 +64,7 @@ async def main(dataset_path: str, case_id: str | None = None) -> None:
 
     report = aggregate_results(results, run_dir)
     (run_dir / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2))
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+    print(format_report(report))
 
 
 if __name__ == "__main__":
