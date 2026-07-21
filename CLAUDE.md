@@ -81,16 +81,21 @@ rubles (value is in kopecks — 299 ₽ ⇒ `value: 29900, minorUnits: 100`). Fi
 golden cases: `fixture_user`/`planted_operation_id` in `operations.json`, `expected_instruction`
 key in `instructions.json`. Real MCP format reference: `json_answer_history_operations.md`.
 
-## Judges (implemented in Phase 4)
+## Judges (judges/)
 
-Prompts live in `prompts/groundedness.md` and `prompts/resolution.md`.
-Both judges call Claude API and return structured JSON.
-Judge stubs return fixed passing values so the pipeline runs end-to-end.
-Resolution is **3-way** (`verdict` ∈ yes/partial/no) to match the human labels; `resolution_yes`
-(= verdict=="yes") feeds the policy.
+`judge_groundedness` and `judge_resolution` call Claude via `judges/_llm.py` (AsyncAnthropic,
+structured outputs `output_config.format` json_schema, determinism via `output_config.effort`).
+Prompts: `prompts/groundedness.md`, `prompts/resolution.md`.
+- Groundedness reads trace only (`query`, `answer`, `tool_calls`, `chunks`) — never `operator_answer`.
+- Resolution reads `query`, `answer`, `operator_answer`; **3-way** `verdict` ∈ yes/partial/no
+  (matches the human labels); `resolution_yes` (= verdict=="yes") is derived in code and feeds the policy.
+
+Env: `JUDGE_MODE` (auto|llm|offline), `JUDGE_MODEL` (default `claude-opus-4-8`), `JUDGE_EFFORT`
+(low|medium|high, default medium), `JUDGE_CONCURRENCY` (calibrate fan-out, default 6). With no key
+(or `JUDGE_MODE=offline`) the judges fall back to stubs so the pipeline runs keyless.
 
 Note: the spec calls for temperature=0, but `claude-opus-4-8` rejects `temperature` (400).
-Get judge determinism via `output_config.effort` + structured outputs instead — not `temperature`.
+Determinism comes from `effort` + structured outputs — not `temperature`.
 
 ## Calibration (calibrate.py)
 

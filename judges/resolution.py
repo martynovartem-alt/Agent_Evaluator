@@ -1,17 +1,41 @@
 """
 Resolution judge: did the agent answer resolve the client's query?
-Compared against operator_answer (ground truth). 3-way verdict to match the human labels
-in the ground-truth set: yes | partial | no  (Да | Частично | Нет).
-Reads ONLY the captured trace — never live tools.
-Phase 4: replace stub with real Claude API call.
+3-way verdict (yes|partial|no ↔ Да/Частично/Нет) to match the human ground-truth labels.
+Compared against operator_answer (ground truth); reads the trace answer, never live tools.
+Prompt: prompts/resolution.md. Falls back to a stub when no judge LLM is available.
 """
+from judges import _llm
+
+_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "verdict": {"type": "string", "enum": ["yes", "partial", "no"]},
+        "reasoning": {"type": "string"},
+    },
+    "required": ["verdict", "reasoning"],
+    "additionalProperties": False,
+}
+
+
+def _payload(case: dict, trace: dict) -> dict:
+    return {
+        "query": case.get("query", ""),
+        "answer": trace.get("answer", ""),
+        "operator_answer": case.get("operator_answer", ""),
+    }
+
+
+def _shape(verdict: str, reasoning: str) -> dict:
+    # resolution_yes (policy input) is derived here, not trusted from the model.
+    return {"verdict": verdict, "resolution_yes": verdict == "yes", "reasoning": reasoning}
 
 
 async def judge_resolution(case: dict, trace: dict) -> dict:
-    # TODO Phase 4: load prompts/resolution.md, call Claude API, parse JSON.
-    verdict = "yes"
-    return {
-        "verdict": verdict,                 # yes | partial | no
-        "resolution_yes": verdict == "yes",  # policy input (partial/no are not "solved")
-        "reasoning": "[stub — Phase 4]",
-    }
+    if not _llm.available():
+        return _shape("yes", "[stub — no judge LLM]")
+    try:
+        out = await _llm.judge_json(_llm.load_prompt("resolution.md"), _payload(case, trace), _SCHEMA)
+        verdict = out["verdict"] if out.get("verdict") in ("yes", "partial", "no") else "no"
+        return _shape(verdict, out.get("reasoning", ""))
+    except Exception as e:
+        return _shape("no", f"[judge error: {e}]")

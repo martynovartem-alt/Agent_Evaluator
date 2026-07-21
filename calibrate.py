@@ -13,9 +13,11 @@ Meaningful once the Phase 4 judge is real; runs on the stub as plumbing.
 import argparse
 import asyncio
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 
+from judges import _llm
 from judges.resolution import judge_resolution
 
 LABELS = ["yes", "partial", "no"]
@@ -51,7 +53,15 @@ async def score_row(row: dict) -> tuple[str, str]:
 
 async def main(dataset_path: str) -> None:
     rows = [r for r in load(dataset_path) if r.get("human_label") in LABELS]
-    pairs = await asyncio.gather(*(score_row(r) for r in rows))
+    print(f"judge: {'LLM (' + _llm.MODEL + ', effort ' + _llm.EFFORT + ')' if _llm.available() else 'stub (no LLM)'}")
+
+    sem = asyncio.Semaphore(int(os.getenv("JUDGE_CONCURRENCY", "6")))
+
+    async def scored(row):
+        async with sem:
+            return await score_row(row)
+
+    pairs = await asyncio.gather(*(scored(r) for r in rows))
     report = summarize(list(pairs))
 
     run_dir = Path("runs") / datetime.now().strftime("%Y%m%dT%H%M%S")

@@ -23,8 +23,8 @@ A prefix mismatch (`final_answer:` vs `no_comments:`) that changes the outcome i
 ```json
 {
   "verdict": "yes",
-  "resolution_yes": true,
   "reasoning": "..."
 }
 ```
-`resolution_yes` must equal `verdict == "yes"`.
+(`verdict` ∈ yes/partial/no. The `resolution_yes` boolean used by the policy is derived
+downstream as `verdict == "yes"` — you only output `verdict` and `reasoning`.)
