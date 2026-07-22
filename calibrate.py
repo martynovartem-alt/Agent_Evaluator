@@ -21,38 +21,46 @@ import config
 from judges.resolution import judge_resolution
 
 LABELS = ["yes", "partial", "no"]
+LABELS_BINARY = ["acceptable", "wrong"]
 CSV_FIELDS = ["id", "human_label", "verdict", "agree", "reasoning",
               "agent_answer", "operator_answer", "dialogue", "assessor_comment"]
+
+
+def to_binary(human_label: str) -> str:
+    """Collapse the human 3-way label to the binary scale: Нет → wrong, Да·Частично → acceptable."""
+    return "wrong" if human_label == "no" else "acceptable"
 
 
 def load(path: str) -> list[dict]:
     return [json.loads(l) for l in Path(path).read_text().splitlines() if l.strip()]
 
 
-_ORDER = {"no": 0, "partial": 1, "yes": 2}   # ordinal scale for within-1
+_ORDER = {"no": 0, "partial": 1, "yes": 2}          # ordinal scale for within-1
+_ORDER_BINARY = {"wrong": 0, "acceptable": 1}
 
 
-def summarize(pairs: list[tuple[str, str]]) -> dict:
+def summarize(pairs: list[tuple[str, str]], labels: list | None = None, order: dict | None = None) -> dict:
     """pairs = [(human_label, judge_verdict)]. Exact agreement + Cohen's kappa + within-1 + matrix.
 
-    On this imbalanced 3-class set, raw agreement rewards the degenerate all-"no" judge
-    (~62.5% here), so kappa (chance-corrected) and within-1 (adjacent verdicts count as near-miss)
-    are the honest headline metrics.
+    On the imbalanced 3-class set, raw agreement rewards the degenerate all-"no" judge (~62.5%),
+    so kappa (chance-corrected) and within-1 (adjacent verdicts count as near-miss) are the honest
+    headline metrics. Pass labels/order for the binary scale.
     """
-    confusion = {h: {j: 0 for j in LABELS} for h in LABELS}
+    labels, order = labels or LABELS, order or _ORDER
+    confusion = {h: {j: 0 for j in labels} for h in labels}
     agree = within1 = 0
     for human, verdict in pairs:
         if human in confusion and verdict in confusion[human]:
             confusion[human][verdict] += 1
         if human == verdict:
             agree += 1
-        if human in _ORDER and verdict in _ORDER and abs(_ORDER[human] - _ORDER[verdict]) <= 1:
+        if human in order and verdict in order and abs(order[human] - order[verdict]) <= 1:
             within1 += 1
     n = len(pairs)
-    row = {h: sum(confusion[h].values()) for h in LABELS}
-    col = {j: sum(confusion[h][j] for h in LABELS) for j in LABELS}
+    row = {h: sum(confusion[h].values()) for h in labels}
+    col = {j: sum(confusion[h][j] for h in labels) for j in labels}
     po = agree / n if n else 0.0
-    pe = sum(row[l] * col[l] for l in LABELS) / (n * n) if n else 0.0
+    pe = sum(row[l] * col[l] for l in labels) / (n * n) if n else 0.0
     kappa = round((po - pe) / (1 - pe), 3) if n and pe != 1 else 0.0
     return {
         "n": n,
@@ -63,14 +71,18 @@ def summarize(pairs: list[tuple[str, str]]) -> dict:
     }
 
 
-async def score_row(row: dict) -> dict:
+async def score_row(row: dict, binary: bool = False) -> dict:
     case = {"id": row["id"], "query": row.get("dialogue", ""), "operator_answer": row.get("operator_answer", "")}
     trace = {"case_id": row["id"], "answer": row.get("agent_answer", ""), "tool_calls": [], "chunks": []}
+    # Always run the 3-way judge; collapse to binary for scoring — empirically beats a native
+    # binary judge (κ 0.287 vs 0.234), since the finer reasoning yields a better wrong/acceptable call.
     result = await judge_resolution(case, trace)
+    verdict = to_binary(result["verdict"]) if binary else result["verdict"]
+    human = to_binary(row["human_label"]) if binary else row["human_label"]
     return {
         "id": row.get("id", ""),
-        "human_label": row["human_label"],
-        "verdict": result["verdict"],
+        "human_label": human,
+        "verdict": verdict,
         "reasoning": result.get("reasoning", ""),
         "agent_answer": row.get("agent_answer", ""),
         "operator_answer": row.get("operator_answer", ""),
@@ -95,22 +107,23 @@ def write_csv(records: list[dict], path: Path, all_rows: bool = False) -> int:
 
 
 async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = False,
-               limit: int | None = None) -> None:
+               limit: int | None = None, binary: bool = False) -> None:
     rows = [r for r in load(dataset_path) if r.get("human_label") in LABELS]
     if limit:
         rows = rows[:limit]
+    labels, order = (LABELS_BINARY, _ORDER_BINARY) if binary else (LABELS, _ORDER)
     spec = config.get("resolution")
     judge = f"LLM ({spec.model}, effort {spec.effort})" if spec.available() else "stub (no LLM)"
-    print(f"judge: {judge}")
+    print(f"judge: {judge}{'  [binary: acceptable/wrong]' if binary else ''}")
 
     sem = asyncio.Semaphore(config.JUDGE_CONCURRENCY)
 
     async def scored(row):
         async with sem:
-            return await score_row(row)
+            return await score_row(row, binary)
 
     records = list(await asyncio.gather(*(scored(r) for r in rows)))
-    report = summarize([(r["human_label"], r["verdict"]) for r in records])
+    report = summarize([(r["human_label"], r["verdict"]) for r in records], labels, order)
 
     run_dir = Path("runs") / datetime.now().strftime("%Y%m%dT%H%M%S")
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -121,9 +134,9 @@ async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = 
     print(f"labeled rows: {report['n']} | agreement: {report['agreement']}% | "
           f"kappa: {report['kappa']} | within-1: {report['within1']}%")
     print("confusion (rows = human, cols = judge):")
-    print("            " + "".join(f"{j:>9}" for j in LABELS))
-    for h in LABELS:
-        print(f"  {h:>8}  " + "".join(f"{report['confusion'][h][j]:>9}" for j in LABELS))
+    print("            " + "".join(f"{j:>11}" for j in labels))
+    for h in labels:
+        print(f"  {h:>10}  " + "".join(f"{report['confusion'][h][j]:>11}" for j in labels))
     print(f"{'rows' if all_rows else 'disagreements'}: {n_csv} → {out_csv}")
 
 
@@ -133,5 +146,6 @@ if __name__ == "__main__":
     parser.add_argument("--csv", default=None, help="CSV path (default: runs/<ts>/disagreements.csv)")
     parser.add_argument("--all-rows", action="store_true", help="write every row, not only disagreements")
     parser.add_argument("--limit", type=int, help="score only the first N labeled rows")
+    parser.add_argument("--binary", action="store_true", help="binary judge: acceptable vs wrong")
     args = parser.parse_args()
-    asyncio.run(main(args.dataset, args.csv, args.all_rows, args.limit))
+    asyncio.run(main(args.dataset, args.csv, args.all_rows, args.limit, args.binary))

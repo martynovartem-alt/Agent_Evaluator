@@ -4,7 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from calibrate import CSV_FIELDS, select_rows, summarize, write_csv
+from calibrate import (CSV_FIELDS, LABELS_BINARY, _ORDER_BINARY, select_rows,
+                       summarize, to_binary, write_csv)
 from dataset import norm_label
 
 _RECORDS = [
@@ -43,6 +44,21 @@ class TestSummarize(unittest.TestCase):
 
     def test_empty(self):
         self.assertEqual(summarize([])["agreement"], 0.0)
+
+
+class TestBinary(unittest.TestCase):
+    def test_to_binary_mapping(self):
+        self.assertEqual(to_binary("no"), "wrong")
+        self.assertEqual(to_binary("yes"), "acceptable")
+        self.assertEqual(to_binary("partial"), "acceptable")
+
+    def test_summarize_binary_labels(self):
+        pairs = [("wrong", "wrong"), ("acceptable", "acceptable"),
+                 ("acceptable", "wrong"), ("wrong", "acceptable")]
+        r = summarize(pairs, LABELS_BINARY, _ORDER_BINARY)
+        self.assertEqual(r["agreement"], 50.0)
+        self.assertEqual(r["confusion"]["acceptable"]["wrong"], 1)
+        self.assertIn("wrong", r["confusion"])
 
 
 class TestDisagreementCsv(unittest.TestCase):
