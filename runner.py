@@ -1,6 +1,10 @@
 """
 Eval runner: reads golden_set.jsonl → run_agent() per case → captures trace →
-runs 3 parallel evaluations → aggregates → writes runs/<timestamp>/report.json
+runs 3 parallel evaluations → aggregates → writes runs/<timestamp>/report.json.
+
+Cases are processed concurrently, bounded by config.JUDGE_CONCURRENCY ([pipeline].concurrency):
+per case the (blocking) agent runs in a worker thread, then its 3 evaluations run in parallel.
+Results stay in dataset order (asyncio.gather preserves it), so the report is deterministic.
 """
 import argparse
 import asyncio
@@ -9,6 +13,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import config
 from agent import run_agent
 from aggregate import aggregate_results, format_report
 from checks import run_checks
@@ -41,6 +46,17 @@ async def evaluate_case(case: dict, trace: dict) -> dict:
     }
 
 
+async def _process_case(case: dict, traces_dir: Path, sem: asyncio.Semaphore) -> dict:
+    """Run the agent, persist its trace, then evaluate it — one case, bounded by `sem`.
+    The agent call is blocking, so it runs in a worker thread to free the event loop."""
+    async with sem:
+        trace = await asyncio.to_thread(run_agent, case)
+        (traces_dir / f"{case['id']}.json").write_text(
+            json.dumps(trace, ensure_ascii=False, indent=2)
+        )
+        return await evaluate_case(case, trace)
+
+
 async def main(dataset_path: str, case_id: str | None = None, limit: int | None = None) -> None:
     cases = load_cases(dataset_path)
     if case_id:
@@ -55,14 +71,10 @@ async def main(dataset_path: str, case_id: str | None = None, limit: int | None 
     traces_dir = run_dir / "traces"
     traces_dir.mkdir(parents=True)
 
-    results = []
-    for case in cases:
-        trace = run_agent(case)
-        (traces_dir / f"{case['id']}.json").write_text(
-            json.dumps(trace, ensure_ascii=False, indent=2)
-        )
-        result = await evaluate_case(case, trace)
-        results.append(result)
+    sem = asyncio.Semaphore(config.JUDGE_CONCURRENCY)
+    results = list(await asyncio.gather(
+        *(_process_case(case, traces_dir, sem) for case in cases)
+    ))
 
     report = aggregate_results(results, run_dir)
     (run_dir / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2))
