@@ -4,8 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from calibrate import (CSV_FIELDS, LABELS_BINARY, _ORDER_BINARY, select_rows,
-                       summarize, to_binary, write_csv)
+from calibrate import (CSV_FIELDS, LABELS_BINARY, _ORDER_BINARY, agg_metrics,
+                       select_rows, summarize, to_binary, write_csv)
 from dataset import norm_label
 
 _RECORDS = [
@@ -44,6 +44,20 @@ class TestSummarize(unittest.TestCase):
 
     def test_empty(self):
         self.assertEqual(summarize([])["agreement"], 0.0)
+
+
+class TestAggMetrics(unittest.TestCase):
+    def test_mean_and_std(self):
+        reports = [{"agreement": 60.0, "kappa": 0.20, "within1": 90.0},
+                   {"agreement": 64.0, "kappa": 0.30, "within1": 92.0}]
+        a = agg_metrics(reports)
+        self.assertEqual(a["agreement_mean"], 62.0)
+        self.assertAlmostEqual(a["kappa_mean"], 0.25)
+        self.assertGreater(a["kappa_std"], 0)
+
+    def test_single_run_std_zero(self):
+        a = agg_metrics([{"agreement": 60.0, "kappa": 0.2, "within1": 90.0}])
+        self.assertEqual(a["kappa_std"], 0.0)
 
 
 class TestBinary(unittest.TestCase):

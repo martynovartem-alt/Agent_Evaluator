@@ -14,6 +14,7 @@ import argparse
 import asyncio
 import csv
 import json
+import statistics
 from datetime import datetime
 from pathlib import Path
 
@@ -91,6 +92,16 @@ async def score_row(row: dict, binary: bool = False) -> dict:
     }
 
 
+def agg_metrics(reports: list[dict]) -> dict:
+    """mean ± std of the headline metrics across repeated runs (beats per-run non-determinism)."""
+    out = {}
+    for key in ("agreement", "kappa", "within1"):
+        vals = [r[key] for r in reports]
+        out[f"{key}_mean"] = round(statistics.mean(vals), 3)
+        out[f"{key}_std"] = round(statistics.stdev(vals), 3) if len(vals) > 1 else 0.0
+    return out
+
+
 def select_rows(records: list[dict], all_rows: bool = False) -> list[dict]:
     """Disagreements (human_label != verdict), or every row when all_rows."""
     return [r for r in records if all_rows or r["human_label"] != r["verdict"]]
@@ -106,15 +117,22 @@ def write_csv(records: list[dict], path: Path, all_rows: bool = False) -> int:
     return len(rows)
 
 
+def _print_confusion(confusion: dict, labels: list) -> None:
+    print("            " + "".join(f"{j:>11}" for j in labels))
+    for h in labels:
+        print(f"  {h:>10}  " + "".join(f"{confusion[h][j]:>11}" for j in labels))
+
+
 async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = False,
-               limit: int | None = None, binary: bool = False) -> None:
+               limit: int | None = None, binary: bool = False, repeat: int = 1) -> None:
     rows = [r for r in load(dataset_path) if r.get("human_label") in LABELS]
     if limit:
         rows = rows[:limit]
     labels, order = (LABELS_BINARY, _ORDER_BINARY) if binary else (LABELS, _ORDER)
     spec = config.get("resolution")
     judge = f"LLM ({spec.model}, effort {spec.effort})" if spec.available() else "stub (no LLM)"
-    print(f"judge: {judge}{'  [binary: acceptable/wrong]' if binary else ''}")
+    print(f"judge: {judge}{'  [binary: acceptable/wrong]' if binary else ''}"
+          f"{f'  × {repeat} runs' if repeat > 1 else ''}")
 
     sem = asyncio.Semaphore(config.JUDGE_CONCURRENCY)
 
@@ -122,21 +140,37 @@ async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = 
         async with sem:
             return await score_row(row, binary)
 
-    records = list(await asyncio.gather(*(scored(r) for r in rows)))
-    report = summarize([(r["human_label"], r["verdict"]) for r in records], labels, order)
+    reports, last_records = [], None
+    for i in range(repeat):
+        records = list(await asyncio.gather(*(scored(r) for r in rows)))
+        report = summarize([(r["human_label"], r["verdict"]) for r in records], labels, order)
+        reports.append(report)
+        last_records = records
+        if repeat > 1:
+            print(f"  run {i + 1}/{repeat}: agreement {report['agreement']}% | "
+                  f"kappa {report['kappa']} | within-1 {report['within1']}%")
 
     run_dir = Path("runs") / datetime.now().strftime("%Y%m%dT%H%M%S")
     run_dir.mkdir(parents=True, exist_ok=True)
-    (run_dir / "calibration.json").write_text(json.dumps(report, ensure_ascii=False, indent=2))
     out_csv = Path(csv_path) if csv_path else run_dir / ("rows.csv" if all_rows else "disagreements.csv")
-    n_csv = write_csv(records, out_csv, all_rows)
+    n_csv = write_csv(last_records, out_csv, all_rows)
 
-    print(f"labeled rows: {report['n']} | agreement: {report['agreement']}% | "
-          f"kappa: {report['kappa']} | within-1: {report['within1']}%")
-    print("confusion (rows = human, cols = judge):")
-    print("            " + "".join(f"{j:>11}" for j in labels))
-    for h in labels:
-        print(f"  {h:>10}  " + "".join(f"{report['confusion'][h][j]:>11}" for j in labels))
+    if repeat > 1:
+        agg = agg_metrics(reports)
+        conf_avg = {h: {j: round(statistics.mean(r["confusion"][h][j] for r in reports), 1) for j in labels} for h in labels}
+        result = {"n": reports[0]["n"], "repeat": repeat, **agg, "runs": reports, "confusion_avg": conf_avg}
+        (run_dir / "calibration.json").write_text(json.dumps(result, ensure_ascii=False, indent=2))
+        print(f"labeled rows: {result['n']} | agreement: {agg['agreement_mean']}%±{agg['agreement_std']} | "
+              f"kappa: {agg['kappa_mean']}±{agg['kappa_std']} | within-1: {agg['within1_mean']}%±{agg['within1_std']}")
+        print("avg confusion (rows = human, cols = judge):")
+        _print_confusion(conf_avg, labels)
+    else:
+        report = reports[0]
+        (run_dir / "calibration.json").write_text(json.dumps(report, ensure_ascii=False, indent=2))
+        print(f"labeled rows: {report['n']} | agreement: {report['agreement']}% | "
+              f"kappa: {report['kappa']} | within-1: {report['within1']}%")
+        print("confusion (rows = human, cols = judge):")
+        _print_confusion(report["confusion"], labels)
     print(f"{'rows' if all_rows else 'disagreements'}: {n_csv} → {out_csv}")
 
 
@@ -147,5 +181,6 @@ if __name__ == "__main__":
     parser.add_argument("--all-rows", action="store_true", help="write every row, not only disagreements")
     parser.add_argument("--limit", type=int, help="score only the first N labeled rows")
     parser.add_argument("--binary", action="store_true", help="binary judge: acceptable vs wrong")
+    parser.add_argument("--repeat", type=int, default=1, help="run N times → mean ± std (beats per-run noise)")
     args = parser.parse_args()
-    asyncio.run(main(args.dataset, args.csv, args.all_rows, args.limit, args.binary))
+    asyncio.run(main(args.dataset, args.csv, args.all_rows, args.limit, args.binary, args.repeat))
