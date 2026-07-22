@@ -29,19 +29,36 @@ def load(path: str) -> list[dict]:
     return [json.loads(l) for l in Path(path).read_text().splitlines() if l.strip()]
 
 
+_ORDER = {"no": 0, "partial": 1, "yes": 2}   # ordinal scale for within-1
+
+
 def summarize(pairs: list[tuple[str, str]]) -> dict:
-    """pairs = [(human_label, judge_verdict)] for labeled rows. Exact-match agreement + matrix."""
+    """pairs = [(human_label, judge_verdict)]. Exact agreement + Cohen's kappa + within-1 + matrix.
+
+    On this imbalanced 3-class set, raw agreement rewards the degenerate all-"no" judge
+    (~62.5% here), so kappa (chance-corrected) and within-1 (adjacent verdicts count as near-miss)
+    are the honest headline metrics.
+    """
     confusion = {h: {j: 0 for j in LABELS} for h in LABELS}
-    agree = 0
+    agree = within1 = 0
     for human, verdict in pairs:
         if human in confusion and verdict in confusion[human]:
             confusion[human][verdict] += 1
         if human == verdict:
             agree += 1
+        if human in _ORDER and verdict in _ORDER and abs(_ORDER[human] - _ORDER[verdict]) <= 1:
+            within1 += 1
     n = len(pairs)
+    row = {h: sum(confusion[h].values()) for h in LABELS}
+    col = {j: sum(confusion[h][j] for h in LABELS) for j in LABELS}
+    po = agree / n if n else 0.0
+    pe = sum(row[l] * col[l] for l in LABELS) / (n * n) if n else 0.0
+    kappa = round((po - pe) / (1 - pe), 3) if n and pe != 1 else 0.0
     return {
         "n": n,
-        "agreement": round(agree / n * 100, 1) if n else 0.0,
+        "agreement": round(po * 100, 1) if n else 0.0,
+        "kappa": kappa,
+        "within1": round(within1 / n * 100, 1) if n else 0.0,
         "confusion": confusion,
     }
 
@@ -101,7 +118,8 @@ async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = 
     out_csv = Path(csv_path) if csv_path else run_dir / ("rows.csv" if all_rows else "disagreements.csv")
     n_csv = write_csv(records, out_csv, all_rows)
 
-    print(f"labeled rows: {report['n']} | judge agreement: {report['agreement']}%")
+    print(f"labeled rows: {report['n']} | agreement: {report['agreement']}% | "
+          f"kappa: {report['kappa']} | within-1: {report['within1']}%")
     print("confusion (rows = human, cols = judge):")
     print("            " + "".join(f"{j:>9}" for j in LABELS))
     for h in LABELS:

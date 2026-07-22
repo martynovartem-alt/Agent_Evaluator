@@ -35,6 +35,8 @@ class TestSummarize(unittest.TestCase):
         r = summarize(pairs)
         self.assertEqual(r["n"], 4)
         self.assertEqual(r["agreement"], 50.0)  # 2 of 4 exact
+        self.assertEqual(r["within1"], 75.0)    # (no,yes) is the only 2-apart pair
+        self.assertIsInstance(r["kappa"], float)
         self.assertEqual(r["confusion"]["partial"]["no"], 1)
         self.assertEqual(r["confusion"]["no"]["yes"], 1)
         self.assertEqual(r["confusion"]["yes"]["yes"], 1)
