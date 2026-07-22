@@ -127,33 +127,28 @@ def _run_anthropic_agent(case: dict, spec) -> dict:
 
 
 def _run_openai_agent(case: dict, spec) -> dict:
-    from openai import OpenAI
+    import oai
 
-    client = OpenAI(api_key=spec.api_key, base_url=spec.base_url or None)
     uid, cd = case.get("fixture_user", ""), case.get("current_date", DEFAULT_DATE)
     system = build_system(spec.prompt_text(), cd, uid)
     messages = [{"role": "system", "content": system}, {"role": "user", "content": case["query"]}]
     tools, tool_calls, chunks, answer = _openai_tools(), [], [], ""
 
     for _ in range(MAX_TOOL_ITERS):
-        resp = client.chat.completions.create(model=spec.model, messages=messages, tools=tools)
-        msg = resp.choices[0].message
-        if not msg.tool_calls:
-            answer = (msg.content or "").strip()
+        msg = oai.chat(spec, messages, tools=tools, temperature=0.0, max_tokens=4096)
+        tcs = msg.get("tool_calls")
+        if not tcs:
+            answer = (msg.get("content") or "").strip()
             break
-        messages.append({
-            "role": "assistant", "content": msg.content or "",
-            "tool_calls": [{"id": tc.id, "type": "function",
-                            "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
-                           for tc in msg.tool_calls],
-        })
-        for tc in msg.tool_calls:
+        messages.append({"role": "assistant", "content": msg.get("content") or "", "tool_calls": tcs})
+        for tc in tcs:
+            fn = tc["function"]
             try:
-                args = json.loads(tc.function.arguments or "{}")
+                args = json.loads(fn.get("arguments") or "{}")
             except json.JSONDecodeError:
                 args = {}
-            result = _execute_tool(tc.function.name, args, uid, cd, tool_calls, chunks)
-            messages.append({"role": "tool", "tool_call_id": tc.id,
+            result = _execute_tool(fn["name"], args, uid, cd, tool_calls, chunks)
+            messages.append({"role": "tool", "tool_call_id": tc["id"],
                              "content": json.dumps(result, ensure_ascii=False)})
 
     return {"case_id": case["id"], "answer": answer, "tool_calls": tool_calls, "chunks": chunks}

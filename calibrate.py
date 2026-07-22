@@ -77,8 +77,11 @@ def write_csv(records: list[dict], path: Path, all_rows: bool = False) -> int:
     return len(rows)
 
 
-async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = False) -> None:
+async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = False,
+               limit: int | None = None) -> None:
     rows = [r for r in load(dataset_path) if r.get("human_label") in LABELS]
+    if limit:
+        rows = rows[:limit]
     spec = config.get("resolution")
     judge = f"LLM ({spec.model}, effort {spec.effort})" if spec.available() else "stub (no LLM)"
     print(f"judge: {judge}")
@@ -111,5 +114,6 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", default="data/labeled_sample.jsonl")
     parser.add_argument("--csv", default=None, help="CSV path (default: runs/<ts>/disagreements.csv)")
     parser.add_argument("--all-rows", action="store_true", help="write every row, not only disagreements")
+    parser.add_argument("--limit", type=int, help="score only the first N labeled rows")
     args = parser.parse_args()
-    asyncio.run(main(args.dataset, args.csv, args.all_rows))
+    asyncio.run(main(args.dataset, args.csv, args.all_rows, args.limit))

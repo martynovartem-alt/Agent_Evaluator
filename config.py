@@ -56,8 +56,8 @@ _DEFAULTS = {
 }
 
 
-def _sdk_present(provider: str) -> bool:
-    return importlib_util.find_spec("openai" if provider == "openai" else "anthropic") is not None
+def _anthropic_present() -> bool:
+    return importlib_util.find_spec("anthropic") is not None
 
 
 @dataclass(frozen=True)
@@ -75,9 +75,11 @@ class AgentSpec:
         return (ROOT / self.prompt).read_text()
 
     def available(self) -> bool:
-        if self.mode == "offline":
+        if self.mode == "offline" or not self.api_key:
             return False
-        return bool(self.api_key) and _sdk_present(self.provider)
+        if self.provider == "openai":
+            return True  # stdlib HTTP client (oai.py) — no SDK needed
+        return _anthropic_present()
 
 
 def get(role: str) -> AgentSpec:

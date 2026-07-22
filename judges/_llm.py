@@ -7,12 +7,12 @@ role can point at a different endpoint/model (Anthropic or OpenAI-compatible, e.
   judge prompt (which already specifies the exact object).
 Model, effort, endpoint, key, and provider come from the role's config.AgentSpec.
 """
+import asyncio
 import json
 
 import config
 
 _anthropic_clients: dict[tuple, object] = {}
-_openai_clients: dict[tuple, object] = {}
 
 
 def _anthropic_client(spec):
@@ -21,14 +21,6 @@ def _anthropic_client(spec):
         import anthropic
         _anthropic_clients[key] = anthropic.AsyncAnthropic(**config.client_kwargs(spec))
     return _anthropic_clients[key]
-
-
-def _openai_client(spec):
-    key = (spec.base_url, spec.api_key)
-    if key not in _openai_clients:
-        from openai import AsyncOpenAI
-        _openai_clients[key] = AsyncOpenAI(api_key=spec.api_key, base_url=spec.base_url or None)
-    return _openai_clients[key]
 
 
 async def _judge_anthropic(spec, system: str, payload: dict, schema: dict) -> dict:
@@ -44,16 +36,14 @@ async def _judge_anthropic(spec, system: str, payload: dict, schema: dict) -> di
 
 
 async def _judge_openai(spec, system: str, payload: dict, schema: dict) -> dict:
-    response = await _openai_client(spec).chat.completions.create(
-        model=spec.model,
-        max_tokens=1024,
-        messages=[
-            {"role": "system", "content": system + "\n\nReturn ONLY one JSON object matching the schema. Respond in json."},
-            {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
-        ],
-        response_format={"type": "json_object"},
-    )
-    return json.loads(response.choices[0].message.content)
+    import oai
+    messages = [
+        {"role": "system", "content": system + "\n\nReturn ONLY one JSON object matching the schema. Respond in json."},
+        {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+    ]
+    # temperature 0 for deterministic verdicts; stdlib HTTP so no SDK install needed.
+    msg = await asyncio.to_thread(oai.chat, spec, messages, None, {"type": "json_object"}, 0.0)
+    return json.loads(msg["content"])
 
 
 async def judge_json(spec, system: str, payload: dict, schema: dict) -> dict:
