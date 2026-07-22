@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Step-by-step usage guide: `GUIDE.md` (EN) / `GUIDE.ru.md` (RU).
 
+DO NOT ADD in code or commits Co-Authored-By: Claude noreply@anthropic.com 
+
 ## Commands
 
 ```bash
