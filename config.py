@@ -75,11 +75,11 @@ class AgentSpec:
         return (ROOT / self.prompt).read_text()
 
     def available(self) -> bool:
-        if self.mode == "offline" or not self.api_key:
+        if self.mode == "offline":
             return False
         if self.provider == "openai":
-            return True  # stdlib HTTP client (oai.py) — no SDK needed
-        return _anthropic_present()
+            return bool(self.api_key or self.base_url)  # stdlib client; internal endpoints may need no key
+        return bool(self.api_key) and _anthropic_present()
 
 
 def get(role: str) -> AgentSpec:
@@ -87,10 +87,11 @@ def get(role: str) -> AgentSpec:
     cfg = {**_DEFAULTS[role], **_RAW.get(role, {})}
     api_key = os.getenv(cfg.get("api_key_env") or "") or os.getenv("ANTHROPIC_API_KEY", "")
     mode = os.getenv(f"{role.upper()}_MODE") or cfg.get("mode", "auto")
+    model = os.getenv(f"{role.upper()}_MODEL") or cfg["model"]   # e.g. RESOLUTION_MODEL for A/B
     return AgentSpec(
         role=role, provider=cfg.get("provider", "anthropic"), mode=mode,
         base_url=cfg.get("base_url", ""), api_key=api_key,
-        model=cfg["model"], effort=cfg.get("effort", "medium"), prompt=cfg["prompt"],
+        model=model, effort=cfg.get("effort", "medium"), prompt=cfg["prompt"],
     )
 
 

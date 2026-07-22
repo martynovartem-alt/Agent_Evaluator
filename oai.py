@@ -17,11 +17,10 @@ def chat(spec, messages: list, tools: list | None = None, response_format: dict 
     if response_format:
         body["response_format"] = response_format
     url = (spec.base_url or "https://api.openai.com/v1").rstrip("/") + "/chat/completions"
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
-        headers={"Authorization": f"Bearer {spec.api_key}", "Content-Type": "application/json"},
-    )
+    headers = {"Content-Type": "application/json"}
+    if spec.api_key:  # internal endpoints may need no key
+        headers["Authorization"] = f"Bearer {spec.api_key}"
+    req = urllib.request.Request(url, data=json.dumps(body, ensure_ascii=False).encode("utf-8"), headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=180) as resp:
             data = json.loads(resp.read().decode("utf-8"))

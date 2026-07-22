@@ -9,8 +9,24 @@ Model, effort, endpoint, key, and provider come from the role's config.AgentSpec
 """
 import asyncio
 import json
+import re
 
 import config
+
+
+def _extract_json(text: str) -> dict:
+    """Parse a JSON object out of a model reply — tolerant of reasoning <think> blocks,
+    markdown fences, and surrounding prose (portable across OpenAI-compatible models)."""
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.DOTALL).strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        match = re.search(r"\{.*\}", text, flags=re.DOTALL)
+        if match:
+            return json.loads(match.group(0))
+        raise
 
 _anthropic_clients: dict[tuple, object] = {}
 
@@ -41,9 +57,10 @@ async def _judge_openai(spec, system: str, payload: dict, schema: dict) -> dict:
         {"role": "system", "content": system + "\n\nReturn ONLY one JSON object matching the schema. Respond in json."},
         {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
     ]
-    # temperature 0 for deterministic verdicts; stdlib HTTP so no SDK install needed.
-    msg = await asyncio.to_thread(oai.chat, spec, messages, None, {"type": "json_object"}, 0.0)
-    return json.loads(msg["content"])
+    # temperature 0 for deterministic verdicts; no response_format (not all endpoints support it);
+    # generous max_tokens so reasoning models can think before emitting the JSON.
+    msg = await asyncio.to_thread(oai.chat, spec, messages, None, None, 0.0, 8192)
+    return _extract_json(msg["content"])
 
 
 async def judge_json(spec, system: str, payload: dict, schema: dict) -> dict:

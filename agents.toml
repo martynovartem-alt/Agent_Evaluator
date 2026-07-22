@@ -7,34 +7,38 @@
 # prompt          -> path to the agent's system prompt (swap the file to change the prompt).
 # mode            -> auto (LLM iff a key is available) | llm | offline
 
-# provider: "anthropic" (base_url "" + claude-* model) or "openai" (OpenAI-compatible, e.g. DeepSeek).
-# Currently pointed at DeepSeek. To revert to Claude: provider="anthropic", base_url="",
-# model="claude-opus-4-8", api_key_env="ANTHROPIC_API_KEY".
+# provider: "anthropic" (base_url "" + claude-* model) or "openai" (OpenAI-compatible).
+# Pointed at the Alfa internal Sandbox API. Put the Sandbox key in .env as SANDBOX_API_KEY.
+# Available-now models (set model = one of these; A/B via env, e.g. RESOLUTION_MODEL=...):
+#   Qwen/Qwen3.6-35B-A3B-FP8   (newest, recommended judge)
+#   Qwen/QwQ-32B               (dense reasoning; A/B against 3.6)
+#   Qwen/Qwen3-Coder-Next  ·  gpt-oss-120b  ·  /models/llama-3.3
+# Coming soon: Qwen/Qwen3.5-122B-A10B-FP8, openai/t-tech/T-pro-it-2.1-FP8, deepseek-ai/DeepSeek-V4-Flash
 
 [agent]                            # the support agent under test (Agent X)
 mode = "auto"
 provider = "openai"
-base_url = "https://api.deepseek.com"
-api_key_env = "DEEPSEEK_API_KEY"
-model = "deepseek-v4-pro"
+base_url = "https://agenapisandbox.moscow.alfaintra.net/internal/llm/v1"
+api_key_env = "SANDBOX_API_KEY"
+model = "Qwen/Qwen3.6-35B-A3B-FP8"
 prompt = "agent_prompt_v2.md"      # verbatim production prompt (prompts/agent.md is the derived alt)
 effort = "medium"
 
 [groundedness]                     # knowledge-grounding judge
 mode = "auto"
 provider = "openai"
-base_url = "https://api.deepseek.com"
-api_key_env = "DEEPSEEK_API_KEY"
-model = "deepseek-v4-flash"
+base_url = "https://agenapisandbox.moscow.alfaintra.net/internal/llm/v1"
+api_key_env = "SANDBOX_API_KEY"
+model = "Qwen/Qwen3.6-35B-A3B-FP8"
 prompt = "prompts/groundedness.md"
 effort = "medium"
 
 [resolution]                       # resolution judge (examiner)
 mode = "auto"
 provider = "openai"
-base_url = "https://api.deepseek.com"
-api_key_env = "DEEPSEEK_API_KEY"
-model = "deepseek-v4-flash"
+base_url = "https://agenapisandbox.moscow.alfaintra.net/internal/llm/v1"
+api_key_env = "SANDBOX_API_KEY"
+model = "Qwen/Qwen3.6-35B-A3B-FP8"
 prompt = "prompts/resolution.md"
 effort = "medium"
 
