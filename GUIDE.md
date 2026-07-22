@@ -5,15 +5,17 @@ cases, captures what the agent did (its answer + tool calls), grades each case w
 deterministic checks and two LLM judges, and produces a report. It can also **calibrate** the
 judges against a set of human-labeled answers.
 
-Everything runs with **no API key** by default (a deterministic offline agent + stub judges),
-so you can see the whole pipeline work before plugging in real models.
+The shipped `agents.toml` points all three roles at the **Alfa internal Sandbox** (an
+OpenAI-compatible endpoint serving Qwen), so out of the box it runs against real models. A fully
+**keyless offline path** (deterministic offline agent + stub judges) is also built in — force it
+with `*_MODE=offline` to see the whole pipeline work with no endpoint (step 2).
 
 ---
 
 ## Architecture at a glance
 
 ```
-        agents.toml + .env ──► config   (per role: endpoint · model · prompt · mode)
+        agents.toml + .env ──► config   (per role: provider · endpoint · model · prompt · mode)
                                   │
   data/golden_mini.jsonl         ▼
      (cases) ────────► agent.py ────► TRACE ────► evaluations (run in parallel)
@@ -39,15 +41,27 @@ so you can see the whole pipeline work before plugging in real models.
 pip install -r requirements.txt          # anthropic (mcp is optional, for live MCP)
 ```
 
-Python 3.11+ (uses stdlib `tomllib`). No key needed for the offline run.
+Python 3.11+ (uses stdlib `tomllib`). The default `provider = "openai"` roles talk to an
+OpenAI-compatible endpoint over **stdlib HTTP** (`oai.py`) — no SDK needed; `anthropic` is only
+required if you point a role back at `provider = "anthropic"`. The keyless offline run needs
+nothing beyond the stdlib.
 
-## 2. Run the eval (offline)
+## 2. Run the eval
 
 ```bash
 python3 runner.py --dataset data/golden_mini.jsonl
 ```
 
-You'll see a summary and a per-run folder under `runs/<timestamp>/`:
+With the shipped config this runs against the **Alfa Sandbox** (needs `SANDBOX_API_KEY` + network
+to the endpoint — steps 5–6). To run **fully offline / keyless** (deterministic agent + stub
+judges), force offline mode:
+
+```bash
+AGENT_MODE=offline GROUNDEDNESS_MODE=offline RESOLUTION_MODE=offline \
+  python3 runner.py --dataset data/golden_mini.jsonl
+```
+
+Either way you'll see a summary and a per-run folder under `runs/<timestamp>/`:
 
 ```
 Run runs/20260721T140727
@@ -63,9 +77,9 @@ Cases:
   ...
 ```
 
-> Offline, `grounded` and `resolution` come from **stub judges** (always pass) — so `Solved`
-> is inflated. The deterministic parts (`tools_ok`, `must_facts`, `instruction`, `planted_op`)
-> are real. To get real judge verdicts, add a key (step 6).
+> In offline mode, `grounded` and `resolution` come from **stub judges** (always pass) — so
+> `Solved` is inflated. The deterministic parts (`tools_ok`, `must_facts`, `instruction`,
+> `planted_op`) are real. For real judge verdicts, run against a live endpoint (steps 5–6).
 
 Run one case: `--case-id subscription_299`.
 
@@ -108,46 +122,54 @@ didn't apply to any case.
 
 ## 5. Configure each agent (agents.toml)
 
-The pipeline has three LLM roles, each configured **independently** in `agents.toml`:
+The pipeline has three LLM roles, each configured **independently** in `agents.toml`. Each role
+picks a `provider` — `"anthropic"` or `"openai"` (any OpenAI-compatible endpoint) — so you can
+mix providers across roles. The shipped config points every role at the Alfa Sandbox (Qwen):
 
 ```toml
-[agent]                       # the support agent under test
-base_url = ""                 # its LLM endpoint ("" = Anthropic default)
-model    = "claude-opus-4-8"
-prompt   = "agent_prompt_v2.md" # its system prompt (swap the file to change it)
+[agent]                                    # the support agent under test
+provider = "openai"                        # "anthropic" | "openai" (OpenAI-compatible)
+base_url = "https://agenapisandbox.moscow.alfaintra.net/internal/llm/v1"
+model    = "Qwen/Qwen3.6-35B-A3B-FP8"
+prompt   = "agent_prompt_v2.md"            # its system prompt (swap the file to change it)
 effort   = "medium"
-mode     = "auto"             # auto | llm | offline
-api_key_env = "AGENT_API_KEY" # env var holding its key
+mode     = "auto"                          # auto | llm | offline
+api_key_env = "SANDBOX_API_KEY"            # env var holding its key
 
-[groundedness]   # ... own endpoint / model / prompt ...
-[resolution]     # ... own endpoint / model / prompt ...
+[groundedness]   # ... own provider / endpoint / model / prompt ...
+[resolution]     # ... own provider / endpoint / model / prompt ...
 [mcp]            # tool backend (see step 7)
 [pipeline]       # concurrency
 ```
 
 To run the agent under test on one deployment and the judges on another, give each section a
-different `base_url` / `api_key_env`. To change an agent's behavior, edit its `prompt` file or
-point `prompt` at a different file. `base_url` must be an Anthropic-compatible endpoint.
+different `provider` / `base_url` / `api_key_env`. To change an agent's behavior, edit its
+`prompt` file or point `prompt` at a different file. For `provider = "anthropic"` leave
+`base_url = ""` for the default (it must be Anthropic-compatible); for `provider = "openai"` set
+`base_url` to any OpenAI-compatible `/v1` endpoint.
 
 ## 6. Go live (real agent + real judges)
 
-Copy the env template and fill in keys:
+Copy the env template and fill in the key each role's `api_key_env` names. The shipped config
+uses **`SANDBOX_API_KEY`** (Alfa Sandbox) for all three roles:
 
 ```bash
 cp .env.example .env
 # .env:
-#   ANTHROPIC_API_KEY=sk-...      (or per-role AGENT_API_KEY / JUDGE_API_KEY)
-#   AGENT_MODE=llm                (optional; else agents.toml mode=auto uses the LLM when a key exists)
+#   SANDBOX_API_KEY=...           (Alfa Sandbox — what the shipped agents.toml points at)
+#   ANTHROPIC_API_KEY=sk-...      (only if a role uses provider = "anthropic")
+#   AGENT_MODE=llm                (optional; else agents.toml mode=auto uses the LLM when reachable)
 ```
 
-Then run the pipeline again — the real agent answers and the real judges grade:
+Then run the pipeline — the real agent answers and the real judges grade:
 
 ```bash
 python3 runner.py --dataset data/golden_mini.jsonl
 ```
 
-`mode = auto` uses the LLM automatically when a key is available; `offline` forces the
-deterministic baseline; `llm` forces the real model.
+`mode = auto` uses the LLM when the role is usable (a key is present, or an OpenAI-compatible
+`base_url` is set); `offline` forces the deterministic baseline; `llm` forces the real model.
+Any key left unset falls back to `ANTHROPIC_API_KEY`.
 
 ## 7. Connect a real MCP server (optional)
 
@@ -225,12 +247,13 @@ Deterministic; no API key needed.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Banner `stub (no LLM)`; `resolution` all `yes` | No API key → judges run as stubs | Set `ANTHROPIC_API_KEY` (or `JUDGE_API_KEY`) in `.env`; check `config.get("resolution").available()` |
+| Banner `stub (no LLM)`; `resolution` all `yes` | Role not usable → judges run as stubs (only when no key **and** no `base_url`, or `*_MODE=offline`) | Set the role's key (e.g. `SANDBOX_API_KEY`) or a `base_url` in `agents.toml`; check `config.get("resolution").available()` |
 | Agent answers look canned; `mode=llm` seems ignored | Running the offline baseline (no key) | Set a key and `[agent].mode = "llm"` (or `auto`) |
 | `ModuleNotFoundError: anthropic` | `mode=llm` forced but SDK missing | `pip install anthropic` |
 | `RuntimeError: MCP_MODE=live requires the MCP SDK — pip install mcp` | Live MCP without the SDK | `pip install mcp`, or set `[mcp].mode = "fixture"` |
 | `RuntimeError: … requires MCP_COMMAND` / `MCP_SERVER_URL` | Live MCP without connection details | Set `command` (stdio) or `server_url` (http) in `agents.toml [mcp]` |
-| Connection / 401 / 404 from the API | Wrong or non-Anthropic `base_url`, or key↔endpoint mismatch | Leave `base_url = ""` for the default; it must be Anthropic-compatible; ensure the key matches the endpoint |
+| Connection / 401 / 404 from the API | Wrong `base_url`, provider↔endpoint mismatch, or key↔endpoint mismatch | Match `provider` to the endpoint (`openai` for OpenAI-compatible, `anthropic` for Anthropic); for Anthropic leave `base_url = ""`; ensure the key matches the endpoint |
+| `URLError` / DNS failure for `…alfaintra.net`; run crashes | Shipped config targets the Alfa Sandbox, reachable only on the Alfa network | Run on-network, or force the offline path: `AGENT_MODE=offline GROUNDEDNESS_MODE=offline RESOLUTION_MODE=offline` (or blank `base_url` / set `mode = "offline"`) |
 | `agents.toml` ignored (defaults used) | Python < 3.11 (no `tomllib`) | Use Python 3.11+ |
 | Live MCP: `KeyError: 'amount'` / wrong amounts | Server tool schema/shape differs | Adapt `_tool_args` in `mcp_client.py`; server must return `{operations:[{…,"amount":{"value","minorUnits"}}]}` (rubles = value/minorUnits) |
 
@@ -245,6 +268,7 @@ Deterministic; no API key needed.
 | `tools.py` / `mcp_client.py` | `MCPClear` + `getInstruction` (fixtures or live MCP) |
 | `checks.py` | deterministic checks |
 | `judges/` | groundedness + resolution judges (`_llm.py` = shared client) |
+| `oai.py` | OpenAI-compatible chat client (stdlib HTTP; used by `provider = "openai"` roles) |
 | `aggregate.py` | policy + report + run diff |
 | `calibrate.py` / `dataset.py` | judge calibration vs the labeled ground truth |
 | `gen_mcp.py` | synthetic MCP dataset generator |

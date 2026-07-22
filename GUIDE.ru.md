@@ -5,15 +5,18 @@
 детерминированными проверками и двумя LLM-судьями и формирует отчёт. Также она умеет
 **калибровать** судей по набору ответов с человеческой разметкой.
 
-По умолчанию всё работает **без API-ключа** (детерминированный офлайн-агент + judge-заглушки),
-поэтому можно увидеть работу всего конвейера ещё до подключения реальных моделей.
+Поставляемый `agents.toml` направляет все три роли во **внутренний Sandbox Альфы**
+(OpenAI-совместимый эндпоинт с моделью Qwen), поэтому «из коробки» конвейер работает на реальных
+моделях. При этом встроен и полностью **офлайн-путь без ключа** (детерминированный офлайн-агент +
+judge-заглушки) — включите его через `*_MODE=offline`, чтобы увидеть работу всего конвейера без
+эндпоинта (шаг 2).
 
 ---
 
 ## Архитектура вкратце
 
 ```
-        agents.toml + .env ──► config   (по роли: эндпоинт · модель · промпт · режим)
+        agents.toml + .env ──► config   (по роли: провайдер · эндпоинт · модель · промпт · режим)
                                   │
   data/golden_mini.jsonl         ▼
      (кейсы) ────────► agent.py ────► TRACE ────► оценки (параллельно)
@@ -39,15 +42,27 @@
 pip install -r requirements.txt          # anthropic (mcp — опционально, для live-MCP)
 ```
 
-Python 3.11+ (используется стандартный `tomllib`). Для офлайн-запуска ключ не нужен.
+Python 3.11+ (используется стандартный `tomllib`). Роли с `provider = "openai"` (по умолчанию)
+обращаются к OpenAI-совместимому эндпоинту по **HTTP из стандартной библиотеки** (`oai.py`) — SDK
+не нужен; `anthropic` требуется, только если роль использует `provider = "anthropic"`. Для
+офлайн-запуска не нужно ничего, кроме стандартной библиотеки.
 
-## 2. Запуск оценки (офлайн)
+## 2. Запуск оценки
 
 ```bash
 python3 runner.py --dataset data/golden_mini.jsonl
 ```
 
-Вы увидите сводку, а результаты запуска попадут в папку `runs/<timestamp>/`:
+С поставляемой конфигурацией это обращается к **Sandbox Альфы** (нужны `SANDBOX_API_KEY` и доступ
+к эндпоинту по сети — шаги 5–6). Чтобы запустить **полностью офлайн / без ключа**
+(детерминированный агент + judge-заглушки), принудительно включите офлайн-режим:
+
+```bash
+AGENT_MODE=offline GROUNDEDNESS_MODE=offline RESOLUTION_MODE=offline \
+  python3 runner.py --dataset data/golden_mini.jsonl
+```
+
+В любом случае вы увидите сводку, а результаты запуска попадут в папку `runs/<timestamp>/`:
 
 ```
 Run runs/20260721T140727
@@ -63,9 +78,10 @@ Cases:
   ...
 ```
 
-> В офлайне `grounded` и `resolution` берутся из **judge-заглушек** (всегда «проходит»), поэтому
-> `Solved` завышен. Детерминированные части (`tools_ok`, `must_facts`, `instruction`,
-> `planted_op`) — настоящие. Чтобы получить реальные вердикты судей, добавьте ключ (шаг 6).
+> В офлайн-режиме `grounded` и `resolution` берутся из **judge-заглушек** (всегда «проходит»),
+> поэтому `Solved` завышен. Детерминированные части (`tools_ok`, `must_facts`, `instruction`,
+> `planted_op`) — настоящие. Чтобы получить реальные вердикты судей, запустите на живом эндпоинте
+> (шаги 5–6).
 
 Запуск одного кейса: `--case-id subscription_299`.
 
@@ -109,46 +125,55 @@ Cases:
 
 ## 5. Настройка каждого агента (agents.toml)
 
-В конвейере три LLM-роли, каждая настраивается **независимо** в `agents.toml`:
+В конвейере три LLM-роли, каждая настраивается **независимо** в `agents.toml`. Каждая роль
+выбирает `provider` — `"anthropic"` или `"openai"` (любой OpenAI-совместимый эндпоинт), — так что
+провайдеров можно смешивать по ролям. Поставляемая конфигурация направляет все роли в Sandbox
+Альфы (Qwen):
 
 ```toml
-[agent]                       # проверяемый агент поддержки
-base_url = ""                 # его LLM-эндпоинт ("" = эндпоинт Anthropic по умолчанию)
-model    = "claude-opus-4-8"
-prompt   = "agent_prompt_v2.md" # его системный промпт (замените файл, чтобы изменить)
+[agent]                                    # проверяемый агент поддержки
+provider = "openai"                        # "anthropic" | "openai" (OpenAI-совместимый)
+base_url = "https://agenapisandbox.moscow.alfaintra.net/internal/llm/v1"
+model    = "Qwen/Qwen3.6-35B-A3B-FP8"
+prompt   = "agent_prompt_v2.md"            # его системный промпт (замените файл, чтобы изменить)
 effort   = "medium"
-mode     = "auto"             # auto | llm | offline
-api_key_env = "AGENT_API_KEY" # переменная окружения с его ключом
+mode     = "auto"                          # auto | llm | offline
+api_key_env = "SANDBOX_API_KEY"            # переменная окружения с его ключом
 
-[groundedness]   # ... свой эндпоинт / модель / промпт ...
-[resolution]     # ... свой эндпоинт / модель / промпт ...
+[groundedness]   # ... свой provider / эндпоинт / модель / промпт ...
+[resolution]     # ... свой provider / эндпоинт / модель / промпт ...
 [mcp]            # бэкенд инструментов (см. шаг 7)
 [pipeline]       # конкурентность
 ```
 
 Чтобы запускать проверяемого агента на одном развёртывании, а судей — на другом, задайте каждой
-секции свои `base_url` / `api_key_env`. Чтобы изменить поведение агента, отредактируйте его файл
-`prompt` или укажите другой файл. `base_url` должен быть Anthropic-совместимым эндпоинтом.
+секции свои `provider` / `base_url` / `api_key_env`. Чтобы изменить поведение агента,
+отредактируйте его файл `prompt` или укажите другой файл. Для `provider = "anthropic"` оставьте
+`base_url = ""` (эндпоинт по умолчанию, должен быть Anthropic-совместимым); для
+`provider = "openai"` укажите в `base_url` любой OpenAI-совместимый эндпоинт `/v1`.
 
 ## 6. Перейти в «боевой» режим (реальный агент + реальные судьи)
 
-Скопируйте шаблон окружения и впишите ключи:
+Скопируйте шаблон окружения и впишите ключ, который называет `api_key_env` каждой роли.
+Поставляемая конфигурация использует **`SANDBOX_API_KEY`** (Sandbox Альфы) для всех трёх ролей:
 
 ```bash
 cp .env.example .env
 # .env:
-#   ANTHROPIC_API_KEY=sk-...      (или по ролям: AGENT_API_KEY / JUDGE_API_KEY)
-#   AGENT_MODE=llm                (опционально; иначе mode=auto из agents.toml включит LLM при наличии ключа)
+#   SANDBOX_API_KEY=...           (Sandbox Альфы — куда указывает поставляемый agents.toml)
+#   ANTHROPIC_API_KEY=sk-...      (только если роль использует provider = "anthropic")
+#   AGENT_MODE=llm                (опционально; иначе mode=auto из agents.toml включит LLM, когда роль доступна)
 ```
 
-Затем снова запустите конвейер — ответит реальный агент, а оценят реальные судьи:
+Затем запустите конвейер — ответит реальный агент, а оценят реальные судьи:
 
 ```bash
 python3 runner.py --dataset data/golden_mini.jsonl
 ```
 
-`mode = auto` использует LLM автоматически при наличии ключа; `offline` принудительно включает
-детерминированный базовый вариант; `llm` принудительно включает реальную модель.
+`mode = auto` использует LLM, когда роль пригодна (есть ключ или задан OpenAI-совместимый
+`base_url`); `offline` принудительно включает детерминированный базовый вариант; `llm`
+принудительно включает реальную модель. Любой незаданный ключ откатывается к `ANTHROPIC_API_KEY`.
 
 ## 7. Подключить реальный MCP-сервер (опционально)
 
@@ -227,12 +252,13 @@ python3 -m unittest discover -s tests -t .
 
 | Симптом | Причина | Решение |
 |---|---|---|
-| Баннер `stub (no LLM)`; `resolution` везде `yes` | Нет API-ключа → судьи работают как заглушки | Задайте `ANTHROPIC_API_KEY` (или `JUDGE_API_KEY`) в `.env`; проверьте `config.get("resolution").available()` |
+| Баннер `stub (no LLM)`; `resolution` везде `yes` | Роль непригодна → судьи работают как заглушки (только если нет ключа **и** нет `base_url`, либо `*_MODE=offline`) | Задайте ключ роли (например, `SANDBOX_API_KEY`) или `base_url` в `agents.toml`; проверьте `config.get("resolution").available()` |
 | Ответы агента шаблонные; `mode=llm` будто игнорируется | Работает офлайн-базлайн (нет ключа) | Задайте ключ и `[agent].mode = "llm"` (или `auto`) |
 | `ModuleNotFoundError: anthropic` | Принудительный `mode=llm`, но SDK не установлен | `pip install anthropic` |
 | `RuntimeError: MCP_MODE=live requires the MCP SDK — pip install mcp` | Live-MCP без SDK | `pip install mcp` или `[mcp].mode = "fixture"` |
 | `RuntimeError: … requires MCP_COMMAND` / `MCP_SERVER_URL` | Live-MCP без данных подключения | Задайте `command` (stdio) или `server_url` (http) в `agents.toml [mcp]` |
-| Ошибка соединения / 401 / 404 от API | Неверный или не-Anthropic `base_url`, либо ключ не соответствует эндпоинту | Оставьте `base_url = ""` для значения по умолчанию; он должен быть Anthropic-совместимым; ключ должен подходить к эндпоинту |
+| Ошибка соединения / 401 / 404 от API | Неверный `base_url`, несоответствие `provider`↔эндпоинт или ключ↔эндпоинт | Сопоставьте `provider` с эндпоинтом (`openai` для OpenAI-совместимых, `anthropic` для Anthropic); для Anthropic оставьте `base_url = ""`; ключ должен подходить к эндпоинту |
+| `URLError` / ошибка DNS для `…alfaintra.net`; прогон падает | Поставляемая конфигурация указывает на Sandbox Альфы, доступный только из сети Альфы | Запускайте из сети Альфы или включите офлайн-путь: `AGENT_MODE=offline GROUNDEDNESS_MODE=offline RESOLUTION_MODE=offline` (или очистите `base_url` / задайте `mode = "offline"`) |
 | `agents.toml` игнорируется (берутся значения по умолчанию) | Python < 3.11 (нет `tomllib`) | Используйте Python 3.11+ |
 | Live-MCP: `KeyError: 'amount'` / неверные суммы | Схема/формат инструмента сервера отличается | Подгоните `_tool_args` в `mcp_client.py`; сервер должен возвращать `{operations:[{…,"amount":{"value","minorUnits"}}]}` (рубли = value/minorUnits) |
 
@@ -247,6 +273,7 @@ python3 -m unittest discover -s tests -t .
 | `tools.py` / `mcp_client.py` | `MCPClear` + `getInstruction` (фикстуры или live-MCP) |
 | `checks.py` | детерминированные проверки |
 | `judges/` | судьи groundedness + resolution (`_llm.py` = общий клиент) |
+| `oai.py` | OpenAI-совместимый чат-клиент (HTTP из stdlib; для ролей `provider = "openai"`) |
 | `aggregate.py` | политика + отчёт + сравнение прогонов |
 | `calibrate.py` / `dataset.py` | калибровка судей по размеченному эталону |
 | `gen_mcp.py` | генератор синтетического MCP-датасета |
