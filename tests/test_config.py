@@ -59,6 +59,44 @@ class TestAgentSpecs(unittest.TestCase):
             del os.environ["RESOLUTION_MODE"]
 
 
+class TestPanel(unittest.TestCase):
+    def test_resolution_panel_from_toml(self):
+        panel = config.panel("resolution")
+        self.assertEqual([p.name for p in panel], ["judge", "prosecutor", "defender"])
+        base = config.get("resolution")
+        for p in panel:
+            self.assertEqual(p.model, base.model)           # inherited from [resolution]
+            self.assertEqual(p.base_url, base.base_url)
+            self.assertTrue(p.prompt_text().strip())        # each persona prompt resolves
+        self.assertEqual(len({p.prompt for p in panel}), 3)  # distinct personas
+
+    def test_panel_off_switch(self):
+        os.environ["RESOLUTION_PANEL"] = "off"
+        try:
+            self.assertEqual(config.panel("resolution"), [])
+        finally:
+            del os.environ["RESOLUTION_PANEL"]
+
+    def test_role_without_panel_is_empty(self):
+        self.assertEqual(config.panel("groundedness"), [])
+
+    def test_env_model_override_applies_to_inherited_base_only(self):
+        # RESOLUTION_MODEL overrides the [resolution] base the entries inherit — but an
+        # explicit per-entry `model =` (a mixed-model bench) must still win over the env var.
+        entry = dict(config._RAW["resolution"]["panel"][1])
+        entry["model"] = "per-entry-model"
+        saved = config._RAW["resolution"]["panel"][1]
+        os.environ["RESOLUTION_MODEL"] = "env-model"
+        config._RAW["resolution"]["panel"][1] = entry
+        try:
+            panel = config.panel("resolution")
+            self.assertEqual(panel[0].model, "env-model")        # inherits base → env wins
+            self.assertEqual(panel[1].model, "per-entry-model")  # explicit entry wins
+        finally:
+            del os.environ["RESOLUTION_MODEL"]
+            config._RAW["resolution"]["panel"][1] = saved
+
+
 class TestMcpAndPipeline(unittest.TestCase):
     def test_mcp_default_and_concurrency(self):
         self.assertEqual(config.MCP_MODE, "fixture")

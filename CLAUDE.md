@@ -114,6 +114,13 @@ Prompts: `prompts/groundedness.md`, `prompts/resolution.md`.
 - Groundedness reads trace only (`query`, `answer`, `tool_calls`, `chunks`) — never `operator_answer`.
 - Resolution reads `query`, `answer`, `operator_answer`; **3-way** `verdict` ∈ yes/partial/no
   (matches the human labels); `resolution_yes` (= verdict=="yes") is derived in code and feeds the policy.
+- Resolution supports **panel voting** ("trial"): `[[resolution.panel]]` entries in `agents.toml`
+  (default bench: neutral judge / prosecutor / defender — `prompts/resolution*.md`) vote
+  concurrently; majority wins, a full 3-way split → `partial` (lower median on no<partial<yes,
+  `majority_verdict`). Per-vote details ({judge, model, verdict, reasoning}) land in the
+  result's `votes[]`; the report's `resolution_votes` carries the verdicts. `RESOLUTION_PANEL=off`
+  → single judge (A/B in calibrate.py). A panelist error counts as a `no` vote (transient
+  failures no longer decide a case alone); a panelist whose spec is unusable is skipped.
 
 Env: `JUDGE_MODE` (auto|llm|offline), `JUDGE_MODEL` (default `claude-opus-4-8`), `JUDGE_EFFORT`
 (low|medium|high, default medium), `JUDGE_CONCURRENCY` (calibrate fan-out, default 6). With no key
@@ -129,6 +136,11 @@ scores each labeled row's existing agent answer and reports exact-match agreemen
 confusion matrix (human × judge). This validates the judge — the "Ground Truth" arm of the
 architecture. Baseline with the always-`yes` stub is ~8% (the `Да` share); the real judge
 must beat it.
+
+The resolution prompts include few-shot examples distilled — anonymized and paraphrased, real
+data never verbatim — from labeled rows (clarifier-as-right-move vs cop-out, hedged reading vs
+confident misidentification, mechanism-without-cause, wrong-direction search); agreement on the
+source rows is slightly optimistic, so judge calibration by overall kappa.
 
 It also writes `runs/<ts>/disagreements.csv` (id, human_label, verdict, agree, judge reasoning,
 agent/operator answers, dialogue, assessor_comment) — judge reasoning next to the human comment,

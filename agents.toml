@@ -42,6 +42,25 @@ model = "Qwen/Qwen3.6-35B-A3B-FP8"
 prompt = "prompts/resolution.md"
 effort = "medium"
 
+# Panel voting ("trial"): the resolution verdict is a majority vote of these judges — any
+# 2 of 3 agree → that verdict; a full yes/partial/no split → "partial" (ordinal median).
+# Each [[resolution.panel]] entry inherits [resolution] and overrides fields (prompt, model, ...).
+# The judges run at temperature 0, so identical prompts would vote identically — diversity
+# comes from the personas (or point panelists at different models for a mixed bench).
+# Triples resolution calls per case; lower [pipeline].concurrency if the endpoint rate-limits.
+# Disable (single judge, for A/B in calibrate.py): RESOLUTION_PANEL=off, or comment these out.
+[[resolution.panel]]
+name = "judge"                     # neutral examiner — same prompt as the single judge
+prompt = "prompts/resolution.md"
+
+[[resolution.panel]]
+name = "prosecutor"                # hunts for real flaws before voting
+prompt = "prompts/resolution_prosecutor.md"
+
+[[resolution.panel]]
+name = "defender"                  # credits what the hint got right before voting
+prompt = "prompts/resolution_defender.md"
+
 [mcp]                              # transaction tool backend (MCPClear)
 mode = "fixture"                   # fixture | live
 transport = "stdio"                # stdio | http

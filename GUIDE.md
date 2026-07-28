@@ -148,6 +148,13 @@ different `provider` / `base_url` / `api_key_env`. To change an agent's behavior
 `base_url = ""` for the default (it must be Anthropic-compatible); for `provider = "openai"` set
 `base_url` to any OpenAI-compatible `/v1` endpoint.
 
+**Panel voting ("trial").** The resolution verdict is decided by a 3-judge panel declared as
+`[[resolution.panel]]` entries (shipped bench: neutral **judge**, **prosecutor**, **defender** —
+same verdict definitions, different scrutiny). Majority wins (any 2 of 3); a full
+yes/partial/no split resolves to `partial`. Each entry inherits `[resolution]` and can override
+`prompt`, `model`, even `base_url` — e.g. a mixed-model bench. `RESOLUTION_PANEL=off` reverts to
+the single judge; note the panel triples resolution calls per case.
+
 ## 6. Go live (real agent + real judges)
 
 Copy the env template and fill in the key each role's `api_key_env` names. The shipped config
@@ -204,6 +211,20 @@ Output: **agreement %** + a 3×3 confusion matrix (human × judge), plus a
 `runs/<ts>/disagreements.csv` listing every row where the judge and human differ — with the
 judge's reasoning next to the human's comment. Use that CSV to tune `prompts/resolution.md`, then
 re-run. (`--all-rows` writes every row; `--csv PATH` overrides the location.)
+
+To measure whether the panel actually beats the single judge, A/B the same labeled set:
+
+```bash
+python3 calibrate.py --dataset data/labeled.jsonl --repeat 3                       # panel
+RESOLUTION_PANEL=off python3 calibrate.py --dataset data/labeled.jsonl --repeat 3  # single judge
+```
+
+Compare **kappa** (chance-corrected) — keep the panel only if it wins; with panel voting the
+`reasoning` column in `disagreements.csv` carries every panelist's vote and argument.
+
+Note: the resolution prompts carry few-shot examples **distilled (anonymized, paraphrased) from
+labeled rows** — agreement on the handful of source rows is slightly optimistic, so judge the
+calibration by the overall kappa, not by any single row.
 
 ## 9. Generate fake MCP data
 

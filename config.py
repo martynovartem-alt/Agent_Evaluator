@@ -70,6 +70,7 @@ class AgentSpec:
     model: str
     effort: str        # low | medium | high (Anthropic only)
     prompt: str        # path, relative to repo root
+    name: str = ""     # panelist name in panel voting; defaults to the role name
 
     def prompt_text(self) -> str:
         return (ROOT / self.prompt).read_text()
@@ -82,17 +83,47 @@ class AgentSpec:
         return bool(self.api_key) and _anthropic_present()
 
 
+def _base_cfg(role: str) -> dict:
+    """Role section merged over defaults, with {ROLE}_MODE/{ROLE}_MODEL env overrides applied.
+    Env overrides land here — on the base a panel entry inherits — so an explicit per-entry
+    `model =`/`mode =` in agents.toml still wins over the env var."""
+    cfg = {**_DEFAULTS[role], **_RAW.get(role, {})}
+    if os.getenv(f"{role.upper()}_MODE"):
+        cfg["mode"] = os.getenv(f"{role.upper()}_MODE")
+    if os.getenv(f"{role.upper()}_MODEL"):                       # e.g. RESOLUTION_MODEL for A/B
+        cfg["model"] = os.getenv(f"{role.upper()}_MODEL")
+    return cfg
+
+
+def _resolve(role: str, cfg: dict, name: str = "") -> AgentSpec:
+    api_key = os.getenv(cfg.get("api_key_env") or "") or os.getenv("ANTHROPIC_API_KEY", "")
+    return AgentSpec(
+        role=role, provider=cfg.get("provider", "anthropic"), mode=cfg.get("mode", "auto"),
+        base_url=cfg.get("base_url", ""), api_key=api_key,
+        model=cfg["model"], effort=cfg.get("effort", "medium"), prompt=cfg["prompt"],
+        name=name or role,
+    )
+
+
 def get(role: str) -> AgentSpec:
     """Resolve the LLM spec for a pipeline role (agent | groundedness | resolution)."""
-    cfg = {**_DEFAULTS[role], **_RAW.get(role, {})}
-    api_key = os.getenv(cfg.get("api_key_env") or "") or os.getenv("ANTHROPIC_API_KEY", "")
-    mode = os.getenv(f"{role.upper()}_MODE") or cfg.get("mode", "auto")
-    model = os.getenv(f"{role.upper()}_MODEL") or cfg["model"]   # e.g. RESOLUTION_MODEL for A/B
-    return AgentSpec(
-        role=role, provider=cfg.get("provider", "anthropic"), mode=mode,
-        base_url=cfg.get("base_url", ""), api_key=api_key,
-        model=model, effort=cfg.get("effort", "medium"), prompt=cfg["prompt"],
-    )
+    return _resolve(role, _base_cfg(role))
+
+
+def panel(role: str) -> list[AgentSpec]:
+    """Panel of judge specs for a role — [[role.panel]] entries in agents.toml.
+    Each entry inherits the role's base section (with env overrides applied) and overrides
+    fields (usually prompt/model); `name` defaults to the entry's prompt filename stem.
+    Empty list = no panel (single judge). {ROLE}_PANEL=off disables the panel for A/B."""
+    if (os.getenv(f"{role.upper()}_PANEL") or "").lower() in ("off", "0", "false"):
+        return []
+    base = _base_cfg(role)
+    entries = base.pop("panel", None) or []
+    return [
+        _resolve(role, {**base, **entry},
+                 entry.get("name") or Path(entry.get("prompt", base["prompt"])).stem)
+        for entry in entries
+    ]
 
 
 def client_kwargs(spec: AgentSpec) -> dict:

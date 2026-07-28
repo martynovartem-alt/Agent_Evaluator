@@ -130,7 +130,14 @@ async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = 
         rows = rows[:limit]
     labels, order = (LABELS_BINARY, _ORDER_BINARY) if binary else (LABELS, _ORDER)
     spec = config.get("resolution")
-    judge = f"LLM ({spec.model}, effort {spec.effort})" if spec.available() else "stub (no LLM)"
+    panel = config.panel("resolution") if spec.available() else []
+    if panel:
+        models = "/".join(sorted({p.model for p in panel}))
+        judge = f"panel of {len(panel)}: {', '.join(p.name for p in panel)} ({models}, effort {spec.effort})"
+    elif spec.available():
+        judge = f"LLM ({spec.model}, effort {spec.effort})"
+    else:
+        judge = "stub (no LLM)"
     print(f"judge: {judge}{'  [binary: acceptable/wrong]' if binary else ''}"
           f"{f'  × {repeat} runs' if repeat > 1 else ''}")
 

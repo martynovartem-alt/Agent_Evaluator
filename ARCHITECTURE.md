@@ -30,6 +30,7 @@ per-role endpoints/models/prompts live in `agents.toml` (`config.py`).
      │                                                                      │◀──│              │
      │  Examiner «Экзаменатор» → judges/resolution.py                       │   ╰──────────────╯
      │      solved? verdict yes / partial / no  +  reasoning («да\нет. почему»)  │
+     │      panel voting: judge + prosecutor + defender → majority (2 of 3) │
      └───────────────────────────────────┬──────────────────────────────────┘
                                           ▼
                     ┌─────────────────────────────────────────────┐
@@ -41,7 +42,7 @@ per-role endpoints/models/prompts live in `agents.toml` (`config.py`).
                     └─────────────────────────────────────────────┘
 
   Calibration (separate): current_agent_answers.xlsx → dataset.py → labeled.jsonl
-                          → calibrate.py → resolution judge vs human labels
+                          → calibrate.py → resolution judge (panel by default) vs human labels
                           → agreement % + confusion + disagreements.csv
 ```
 
@@ -54,12 +55,14 @@ per-role endpoints/models/prompts live in `agents.toml` (`config.py`).
 | Chunks ← База знаний FAQ | `getInstruction` results → `trace.chunks`; source `fixtures/instructions.json` |
 | RAW MCP data ← MCP | `MCPClear` results → `trace.tool_calls`; source `data/mcp_fake.json` (200×200) or a live MCP server |
 | Агент Оценщик Знаний | `judges/groundedness.py` (grounded vs tool data) |
-| Агент экзаменатор | `judges/resolution.py` (3-way yes/partial/no + reasoning) |
+| Агент экзаменатор | `judges/resolution.py` (3-way yes/partial/no + reasoning; default: 3-judge panel vote — `[[resolution.panel]]` in `agents.toml`, `RESOLUTION_PANEL=off` → single judge) |
 | Ground Truth | `operator_answer` (golden) / human `Да·Частично·Нет` labels (calibration) |
 | Eval (dashed box) | `runner.evaluate_case` → `checks` + 2 judges in parallel |
 | Отчёт | `aggregate.py` → `runs/<ts>/report.json` + `format_report` summary |
 | Правим промпт / интеграции | edit `agent_prompt_v2.md` / `prompts/*.md` / `agents.toml` |
 
 Not in the PNG but in the implementation: `checks.py` (deterministic checks), the offline
-baseline agent + stub judges (keyless runs), per-run `runs/<ts>/` output, and the per-agent
-provider seam (Anthropic or OpenAI-compatible endpoints — Claude, DeepSeek, etc.).
+baseline agent + stub judges (keyless runs), per-run `runs/<ts>/` output, the per-agent
+provider seam (Anthropic or OpenAI-compatible endpoints — Claude, DeepSeek, etc.), and
+resolution **panel voting** (the examiner is a 3-judge bench — neutral judge / prosecutor /
+defender — voting concurrently, so a case sees 1 groundedness + 3 resolution judge calls).
