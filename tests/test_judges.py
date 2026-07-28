@@ -33,6 +33,12 @@ class TestShaping(unittest.TestCase):
         self.assertFalse(_shape("partial", "")["resolution_yes"])
         self.assertFalse(_shape("no", "")["resolution_yes"])
 
+    def test_failure_reason_normalization(self):
+        self.assertEqual(_shape("yes", "", "incomplete")["failure_reason"], "none")  # yes → none
+        self.assertEqual(_shape("partial", "", "incomplete")["failure_reason"], "incomplete")
+        self.assertEqual(_shape("no", "")["failure_reason"], "other")               # missing → other
+        self.assertEqual(_shape("no", "", "bogus_reason")["failure_reason"], "other")
+
 
 class TestMajorityVerdict(unittest.TestCase):
     def test_two_of_three_wins(self):
@@ -90,6 +96,21 @@ class TestPanelVoting(unittest.TestCase):
         r = self._run({"judge": "yes", "prosecutor": "no", "defender": "partial"})
         self.assertEqual(r["verdict"], "partial")
         self.assertFalse(r["resolution_yes"])
+
+    def test_panel_failure_reason_majority(self):
+        async def fake_judge(spec, system, payload, schema):
+            v = {"judge": ("no", "no_answer"), "prosecutor": ("no", "incomplete"),
+                 "defender": ("no", "incomplete")}[spec.name]
+            return {"verdict": v[0], "failure_reason": v[1], "reasoning": spec.name}
+
+        with mock.patch.object(resolution_mod.config, "get", return_value=_panel_spec("resolution")), \
+             mock.patch.object(resolution_mod.config, "panel",
+                               return_value=[_panel_spec(n) for n in ("judge", "prosecutor", "defender")]), \
+             mock.patch.object(resolution_mod._llm, "judge_json", new=fake_judge):
+            r = asyncio.run(judge_resolution({"query": "q"}, {"answer": "a"}))
+        self.assertEqual(r["verdict"], "no")
+        self.assertEqual(r["failure_reason"], "incomplete")  # 2 of 3 not-correct votes say incomplete
+        self.assertEqual(r["votes"][0]["failure_reason"], "no_answer")
 
     def test_one_panelist_error_absorbed(self):
         r = self._run({"judge": "yes", "prosecutor": RuntimeError("boom"), "defender": "yes"})

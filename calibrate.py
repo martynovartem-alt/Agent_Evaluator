@@ -19,17 +19,18 @@ from datetime import datetime
 from pathlib import Path
 
 import config
-from judges.resolution import judge_resolution
+from judges.resolution import FAILURE_REASONS, judge_resolution
 
 LABELS = ["yes", "partial", "no"]
-LABELS_BINARY = ["acceptable", "wrong"]
-CSV_FIELDS = ["id", "human_label", "verdict", "agree", "reasoning",
+LABELS_BINARY = ["correct", "incorrect"]
+CSV_FIELDS = ["id", "human_label", "verdict", "failure_reason", "agree", "reasoning",
               "agent_answer", "operator_answer", "dialogue", "assessor_comment"]
 
 
-def to_binary(human_label: str) -> str:
-    """Collapse the human 3-way label to the binary scale: Нет → wrong, Да·Частично → acceptable."""
-    return "wrong" if human_label == "no" else "acceptable"
+def to_binary(label: str) -> str:
+    """Collapse the 3-way label to the binary scale: only Да is correct — Частично counts
+    as incorrect (matches the pipeline policy, where solved requires a strict yes)."""
+    return "correct" if label == "yes" else "incorrect"
 
 
 def load(path: str) -> list[dict]:
@@ -37,7 +38,7 @@ def load(path: str) -> list[dict]:
 
 
 _ORDER = {"no": 0, "partial": 1, "yes": 2}          # ordinal scale for within-1
-_ORDER_BINARY = {"wrong": 0, "acceptable": 1}
+_ORDER_BINARY = {"incorrect": 0, "correct": 1}
 
 
 def summarize(pairs: list[tuple[str, str]], labels: list | None = None, order: dict | None = None) -> dict:
@@ -89,8 +90,8 @@ def summarize(pairs: list[tuple[str, str]], labels: list | None = None, order: d
 async def score_row(row: dict, binary: bool = False) -> dict:
     case = {"id": row["id"], "query": row.get("dialogue", ""), "operator_answer": row.get("operator_answer", "")}
     trace = {"case_id": row["id"], "answer": row.get("agent_answer", ""), "tool_calls": [], "chunks": []}
-    # Always run the 3-way judge; collapse to binary for scoring — empirically beats a native
-    # binary judge (κ 0.287 vs 0.234), since the finer reasoning yields a better wrong/acceptable call.
+    # Always run the 3-way judge and collapse in code (finer reasoning beats a native binary
+    # judge); the binary scale is correct vs incorrect, with the judge's partial → incorrect.
     result = await judge_resolution(case, trace)
     verdict = to_binary(result["verdict"]) if binary else result["verdict"]
     human = to_binary(row["human_label"]) if binary else row["human_label"]
@@ -98,6 +99,7 @@ async def score_row(row: dict, binary: bool = False) -> dict:
         "id": row.get("id", ""),
         "human_label": human,
         "verdict": verdict,
+        "failure_reason": result.get("failure_reason", "none"),
         "reasoning": result.get("reasoning", ""),
         "agent_answer": row.get("agent_answer", ""),
         "operator_answer": row.get("operator_answer", ""),
@@ -147,10 +149,32 @@ def _print_pr(report: dict, labels: list) -> None:
 
 
 def binary_collapse(records: list[dict]) -> dict:
-    """Binary (acceptable vs wrong) summary derived from already-scored 3-way records —
-    no extra judge calls."""
+    """Binary (correct vs incorrect, Частично → incorrect) summary derived from
+    already-scored 3-way records — no extra judge calls."""
     pairs = [(to_binary(r["human_label"]), to_binary(r["verdict"])) for r in records]
     return summarize(pairs, LABELS_BINARY, _ORDER_BINARY)
+
+
+def failure_breakdown(records: list[dict]) -> list[dict]:
+    """Judge-flagged failures by reason: count + how many of those rows the human also
+    graded incorrect (i.e. the flag is confirmed by ground truth)."""
+    flagged = [r for r in records if r.get("failure_reason", "none") != "none"]
+    out = []
+    for reason in FAILURE_REASONS:
+        sub = [r for r in flagged if r["failure_reason"] == reason]
+        if sub:
+            confirmed = sum(1 for r in sub if r["human_label"] not in ("yes", "correct"))
+            out.append({"reason": reason, "count": len(sub), "human_also_incorrect": confirmed})
+    return sorted(out, key=lambda x: -x["count"])
+
+
+def _print_failures(breakdown: list[dict]) -> None:
+    if not breakdown:
+        return
+    total = sum(b["count"] for b in breakdown)
+    print(f"failure reasons (judge says incorrect, n={total}; confirmed = human also incorrect):")
+    for b in breakdown:
+        print(f"  {b['reason']:>15}  {b['count']:4}  (confirmed: {b['human_also_incorrect']})")
 
 
 async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = False,
@@ -193,10 +217,12 @@ async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = 
     n_csv = write_csv(last_records, out_csv, all_rows)
 
     binary_summary = None if binary else binary_collapse(last_records)
+    failures = failure_breakdown(last_records)
     if repeat > 1:
         agg = agg_metrics(reports)
         conf_avg = {h: {j: round(statistics.mean(r["confusion"][h][j] for r in reports), 1) for j in labels} for h in labels}
-        result = {"n": reports[0]["n"], "repeat": repeat, **agg, "runs": reports, "confusion_avg": conf_avg}
+        result = {"n": reports[0]["n"], "repeat": repeat, **agg, "runs": reports, "confusion_avg": conf_avg,
+                  "failure_reasons": failures}
         if binary_summary:
             result["binary_collapse"] = binary_summary  # from the last run's records
         (run_dir / "calibration.json").write_text(json.dumps(result, ensure_ascii=False, indent=2))
@@ -207,6 +233,7 @@ async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = 
         _print_confusion(conf_avg, labels)
     else:
         report = reports[0]
+        report["failure_reasons"] = failures
         if binary_summary:
             report["binary_collapse"] = binary_summary
         (run_dir / "calibration.json").write_text(json.dumps(report, ensure_ascii=False, indent=2))
@@ -216,9 +243,10 @@ async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = 
         print("confusion (rows = human, cols = judge):")
         _print_confusion(report["confusion"], labels)
     if binary_summary:
-        print(f"binary collapse (acceptable = yes+partial, wrong = no): "
+        print(f"binary (correct = Да; Частично counts as incorrect): "
               f"agreement {binary_summary['agreement']}% | kappa {binary_summary['kappa']}")
         _print_pr(binary_summary, LABELS_BINARY)
+    _print_failures(failures)
     print(f"{'rows' if all_rows else 'disagreements'}: {n_csv} → {out_csv}")
 
 
@@ -228,7 +256,8 @@ if __name__ == "__main__":
     parser.add_argument("--csv", default=None, help="CSV path (default: runs/<ts>/disagreements.csv)")
     parser.add_argument("--all-rows", action="store_true", help="write every row, not only disagreements")
     parser.add_argument("--limit", type=int, help="score only the first N labeled rows")
-    parser.add_argument("--binary", action="store_true", help="binary judge: acceptable vs wrong")
+    parser.add_argument("--binary", action="store_true",
+                        help="score on the binary scale: correct vs incorrect (Частично → incorrect)")
     parser.add_argument("--repeat", type=int, default=1, help="run N times → mean ± std (beats per-run noise)")
     args = parser.parse_args()
     asyncio.run(main(args.dataset, args.csv, args.all_rows, args.limit, args.binary, args.repeat))

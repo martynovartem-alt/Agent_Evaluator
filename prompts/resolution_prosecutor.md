@@ -36,40 +36,50 @@ truly doesn't show it. **But a confidently wrong or misleading claim is `no`, no
 
 ## Examples (calibration — illustrative; do not reuse these specifics)
 Input: {"query":"За что списание 299 ₽?","answer":"final_answer: Списание 299 ₽ 5 июня — плата за подписку «Альфа-Смарт».","operator_answer":"Это плата за «Альфа-Смарт», 299 ₽. Даёт кешбэк и бесплатные переводы; отключить можно в разделе Подписки."}
-Output: {"verdict":"yes","reasoning":"Hunted for flaws, found none: right operation, right charge, consistent with the operator. Less detail is not a flaw."}
+Output: {"verdict":"yes","failure_reason":"none","reasoning":"Hunted for flaws, found none: right operation, right charge, consistent with the operator. Less detail is not a flaw."}
 
 Input: {"query":"Почему не пришёл кешбэк за оплату ЖКХ?","answer":"final_answer: Вижу оплату ЖКХ на 3 200 ₽ 10 июня.","operator_answer":"Оплата прошла с MCC, не участвующим в кешбэке, поэтому начисления не будет."}
-Output: {"verdict":"partial","reasoning":"The client asked WHY there is no cashback; the hint only restates the operation — it dodges the actual question."}
+Output: {"verdict":"partial","failure_reason":"incomplete","reasoning":"The client asked WHY there is no cashback; the hint only restates the operation — it dodges the actual question."}
 
 Input: {"query":"Что за списание 5 000 ₽?","answer":"final_answer: Это перевод между вашими счетами, 5 000 ₽.","operator_answer":"Это взыскание по исполнительному производству, 5 000 ₽."}
-Output: {"verdict":"no","reasoning":"Demonstrable flaw: calls a debt collection an internal transfer — factually wrong and misleading."}
+Output: {"verdict":"no","failure_reason":"wrong_operation","reasoning":"Demonstrable flaw: calls a debt collection an internal transfer — factually wrong and misleading."}
 
 ## Examples from real graded dialogues (anonymized and paraphrased — learn the pattern, not the specifics)
 A clarifying question is `yes` when clarification is genuinely the right move, `no` when it is a template cop-out:
 
 Input: {"query":"Мне ночью перевели деньги, где они?","answer":"final_answer: 12 июля • Перевод — 4 500 ₽ (поступление). Зачислен на ваш счёт. Если ожидали другую сумму, уточните детали перевода.","operator_answer":"Уточните, пожалуйста, сумму перевода, о котором вы спрашиваете."}
-Output: {"verdict":"yes","reasoning":"Pulled the matching credit and offered a targeted clarifier — useful direction, consistent with the operator's own clarifying move."}
+Output: {"verdict":"yes","failure_reason":"none","reasoning":"Pulled the matching credit and offered a targeted clarifier — useful direction, consistent with the operator's own clarifying move."}
 
 Input: {"query":"Комиссия за последний перевод снята неправомерно?","answer":"final_answer: Уточните, пожалуйста, дату и сумму операции, где была снята комиссия, а также тип операции — это поможет разобраться.","operator_answer":"Проверила ваш последний перевод от 18 июля: комиссия 49 ₽ списана согласно тарифу за перевод в другой банк."}
-Output: {"verdict":"no","reasoning":"The client already pointed at the LAST transfer — the agent could look it up but replied with a template clarifier instead; no practical value."}
+Output: {"verdict":"no","failure_reason":"no_answer","reasoning":"The client already pointed at the LAST transfer — the agent could look it up but replied with a template clarifier instead; no practical value."}
 
 A hedged reading of what the tool data actually shows is `yes` (leniency); a confident wrong nature-claim is `no`:
 
 Input: {"query":"Что за списание 2 314 ₽ вчера?","answer":"final_answer: 14 июля • Внутрибанковский перевод — 2 314,50 ₽. Судя по данным, это внутренний перевод в рублях; если ожидали другое, уточните детали.","operator_answer":"Это списание по решению о взыскании №4821 по ст. 46 НК РФ."}
-Output: {"verdict":"yes","reasoning":"The tool data genuinely shows an internal transfer; the collection order behind it was not visible to the agent — it read the data correctly and hedged, unlike a confident misidentification."}
+Output: {"verdict":"yes","failure_reason":"none","reasoning":"The tool data genuinely shows an internal transfer; the collection order behind it was not visible to the agent — it read the data correctly and hedged, unlike a confident misidentification."}
 
 Explaining the general mechanism without the specific cause is `partial`; searching in the wrong direction is `no`:
 
 Input: {"query":"Что за резерв 990 ₽ по счёту?","answer":"final_answer: 3 июля • Резерв по счёту — 990 ₽. Это временная блокировка средств, она снимется после завершения операции.","operator_answer":"Это резерв под списание платы за годовое обслуживание карты — 990 ₽ спишутся согласно тарифу."}
-Output: {"verdict":"partial","reasoning":"Explains what a hold is in general but not what THIS hold is for (the annual fee) — right operation, generic direction, key substance missing."}
+Output: {"verdict":"partial","failure_reason":"incomplete","reasoning":"Explains what a hold is in general but not what THIS hold is for (the annual fee) — right operation, generic direction, key substance missing."}
 
 Input: {"query":"Почему у меня возникла сумма погашения процентов?","answer":"final_answer: За указанный период операций «Платёж по кредиту» не найдено. Уточните дату или сумму платежа.","operator_answer":"Ваш льготный период закончился 30 июня, поэтому на задолженность начали начисляться проценты."}
-Output: {"verdict":"no","reasoning":"The question is WHY interest appeared; the agent searched for loan payments and reported none — wrong direction, unhelpful for the actual question."}
+Output: {"verdict":"no","failure_reason":"no_answer","reasoning":"The question is WHY interest appeared; the agent searched for loan payments and reported none — wrong direction, unhelpful for the actual question."}
+
+## `failure_reason` — why the answer is not correct
+Set `failure_reason` to `"none"` when the verdict is `yes`. Otherwise pick the dominant cause:
+- `wrong_operation` — points at the wrong operation, or asserts a wrong nature/fact about it
+- `hallucination` — invents details, conditions, or causes not supported by anything in the input
+- `incomplete` — right operation/context, but the substance of the question is unanswered
+- `no_answer` — template reply or generic clarifier with no practical value when the agent could have answered
+- `missed_data` — claims the operation/data cannot be found although the operator clearly had it
+- `other` — anything else
 
 ## Output (strict JSON, no prose outside the object)
 ```json
 {
   "verdict": "yes",
+  "failure_reason": "none",
   "reasoning": "..."
 }
 ```

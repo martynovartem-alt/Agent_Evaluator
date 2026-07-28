@@ -113,7 +113,10 @@ structured outputs `output_config.format` json_schema, determinism via `output_c
 Prompts: `prompts/groundedness.md`, `prompts/resolution.md`.
 - Groundedness reads trace only (`query`, `answer`, `tool_calls`, `chunks`) — never `operator_answer`.
 - Resolution reads `query`, `answer`, `operator_answer`; **3-way** `verdict` ∈ yes/partial/no
-  (matches the human labels); `resolution_yes` (= verdict=="yes") is derived in code and feeds the policy.
+  (matches the human labels); `resolution_yes` (= verdict=="yes") is derived in code and feeds the
+  policy. It also emits `failure_reason` (none | wrong_operation | hallucination | incomplete |
+  no_answer | missed_data | other) — normalized in code (`yes` → none, not-yes without a
+  recognized reason → other); shown per case in the report as e.g. `no·incomplete`.
 - Resolution supports **panel voting** ("trial"): `[[resolution.panel]]` entries in `agents.toml`
   (default bench: neutral judge / prosecutor / defender — `prompts/resolution*.md`) vote
   concurrently; majority wins, a full 3-way split → `partial` (lower median on no<partial<yes,
@@ -133,9 +136,12 @@ Determinism comes from `effort` + structured outputs — not `temperature`.
 
 The resolution judge's target is the human `Is agents answer correct?` label. `calibrate.py`
 scores each labeled row's existing agent answer and reports exact-match agreement + a 3×3
-confusion matrix (human × judge), per-class precision/recall/F1 + macro, and a binary collapse
-(acceptable = yes+partial vs wrong = no; derived from the same records, no extra judge calls —
-`binary_collapse` in calibration.json). This validates the judge — the "Ground Truth" arm of the
+confusion matrix (human × judge), per-class precision/recall/F1 + macro, a binary collapse
+(**correct = Да only; Частично counts as incorrect** — matches the solved policy; derived from
+the same records, no extra judge calls — `binary_collapse` in calibration.json), and a
+failure-reason breakdown (`failure_reasons`: judge-flagged incorrect rows by cause —
+wrong_operation / hallucination / incomplete / no_answer / missed_data / other — with how many
+the human also graded incorrect). This validates the judge — the "Ground Truth" arm of the
 architecture. Baseline with the always-`yes` stub is ~8% (the `Да` share); the real judge
 must beat it.
 

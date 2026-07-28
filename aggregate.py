@@ -52,6 +52,7 @@ def _case_row(result: dict) -> dict:
         "case_id": result["case_id"],
         "solved": is_solved(result),
         "resolution_verdict": result["resolution"].get("verdict"),
+        "resolution_failure": result["resolution"].get("failure_reason"),
         "resolution_votes": [v["verdict"] for v in result["resolution"].get("votes", [])] or None,
         "has_unsupported_claim": result["groundedness"].get("has_unsupported_critical_claim"),
         "tools_ok": checks.get("tools_ok"),
@@ -124,6 +125,8 @@ def format_report(report: dict) -> str:
         flags = [c["resolution_verdict"] or "?"]
         if c.get("resolution_votes"):
             flags[0] += "[" + "".join(v[0] for v in c["resolution_votes"]) + "]"  # e.g. yes[yyn]
+        if c.get("resolution_failure") not in (None, "none"):
+            flags[0] += f"·{c['resolution_failure']}"  # e.g. no·incomplete
         if not c["tools_ok"]:
             flags.append("tools✗")
         if not c["all_must_facts"]:

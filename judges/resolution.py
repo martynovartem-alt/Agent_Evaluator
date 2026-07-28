@@ -15,13 +15,20 @@ import asyncio
 import config
 from judges import _llm
 
+# Why the answer is not correct — assessable from query/answer/operator_answer alone
+# (tool misuse is not visible here; in the pipeline it's checks.py tools_ok, and
+# hallucination-vs-trace is the groundedness judge).
+FAILURE_REASONS = ["none", "wrong_operation", "hallucination", "incomplete",
+                   "no_answer", "missed_data", "other"]
+
 _SCHEMA = {
     "type": "object",
     "properties": {
         "verdict": {"type": "string", "enum": ["yes", "partial", "no"]},
+        "failure_reason": {"type": "string", "enum": FAILURE_REASONS},
         "reasoning": {"type": "string"},
     },
-    "required": ["verdict", "reasoning"],
+    "required": ["verdict", "failure_reason", "reasoning"],
     "additionalProperties": False,
 }
 
@@ -36,9 +43,18 @@ def _payload(case: dict, trace: dict) -> dict:
     }
 
 
-def _shape(verdict: str, reasoning: str) -> dict:
+def _norm_reason(verdict: str, reason: str) -> str:
+    """Keep verdict and failure_reason consistent: a correct answer has no failure;
+    a not-correct answer without a recognized reason is 'other'."""
+    if verdict == "yes":
+        return "none"
+    return reason if reason in FAILURE_REASONS and reason != "none" else "other"
+
+
+def _shape(verdict: str, reasoning: str, failure_reason: str = "none") -> dict:
     # resolution_yes (policy input) is derived here, not trusted from the model.
-    return {"verdict": verdict, "resolution_yes": verdict == "yes", "reasoning": reasoning}
+    return {"verdict": verdict, "resolution_yes": verdict == "yes",
+            "failure_reason": _norm_reason(verdict, failure_reason), "reasoning": reasoning}
 
 
 def majority_verdict(verdicts: list[str]) -> str:
@@ -56,9 +72,20 @@ async def _vote(spec: config.AgentSpec, case: dict, trace: dict) -> dict:
         out = await _llm.judge_json(spec, spec.prompt_text(), _payload(case, trace), _SCHEMA)
         verdict = out["verdict"] if out.get("verdict") in ("yes", "partial", "no") else "no"
         reasoning = out.get("reasoning", "")
+        reason = _norm_reason(verdict, out.get("failure_reason", ""))
     except Exception as e:
-        verdict, reasoning = "no", f"[judge error: {e}]"
-    return {"judge": spec.name, "model": spec.model, "verdict": verdict, "reasoning": reasoning}
+        verdict, reasoning, reason = "no", f"[judge error: {e}]", "other"
+    return {"judge": spec.name, "model": spec.model, "verdict": verdict,
+            "failure_reason": reason, "reasoning": reasoning}
+
+
+def _panel_reason(verdict: str, votes: list[dict]) -> str:
+    """Failure reason for the panel verdict: the most common reason among the panelists
+    that voted not-correct (ties broken by FAILURE_REASONS order, deterministic)."""
+    if verdict == "yes":
+        return "none"
+    reasons = [v["failure_reason"] for v in votes if v["verdict"] != "yes"]
+    return min(set(reasons), key=lambda r: (-reasons.count(r), FAILURE_REASONS.index(r))) if reasons else "other"
 
 
 async def judge_resolution(case: dict, trace: dict) -> dict:
@@ -70,13 +97,13 @@ async def judge_resolution(case: dict, trace: dict) -> dict:
     panel = [s for s in config.panel("resolution") if s.available()]
     if not panel:
         vote = await _vote(spec, case, trace)
-        return _shape(vote["verdict"], vote["reasoning"])
+        return _shape(vote["verdict"], vote["reasoning"], vote["failure_reason"])
     votes = list(await asyncio.gather(*(_vote(s, case, trace) for s in panel)))
     verdict = majority_verdict([v["verdict"] for v in votes])
     tally = " ".join(f"{v['judge']}→{v['verdict']}" for v in votes)
     reasoning = f"panel: {tally} ⇒ {verdict}. " + " ".join(
         f"[{v['judge']}] {v['reasoning']}" for v in votes
     )
-    result = _shape(verdict, reasoning)
+    result = _shape(verdict, reasoning, _panel_reason(verdict, votes))
     result["votes"] = votes
     return result

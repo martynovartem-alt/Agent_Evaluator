@@ -9,10 +9,10 @@ from calibrate import (CSV_FIELDS, LABELS_BINARY, _ORDER_BINARY, agg_metrics,
 from dataset import norm_label
 
 _RECORDS = [
-    {"id": "a", "human_label": "yes", "verdict": "yes", "reasoning": "", "agent_answer": "",
-     "operator_answer": "", "dialogue": "", "assessor_comment": ""},
-    {"id": "b", "human_label": "no", "verdict": "yes", "reasoning": "wrong", "agent_answer": "x",
-     "operator_answer": "", "dialogue": "line1\nline2", "assessor_comment": ""},
+    {"id": "a", "human_label": "yes", "verdict": "yes", "failure_reason": "none", "reasoning": "",
+     "agent_answer": "", "operator_answer": "", "dialogue": "", "assessor_comment": ""},
+    {"id": "b", "human_label": "no", "verdict": "yes", "failure_reason": "none", "reasoning": "wrong",
+     "agent_answer": "x", "operator_answer": "", "dialogue": "line1\nline2", "assessor_comment": ""},
 ]
 
 
@@ -60,9 +60,10 @@ class TestSummarize(unittest.TestCase):
         records = [{"human_label": h, "verdict": v} for h, v in
                    [("yes", "yes"), ("no", "no"), ("partial", "no"), ("no", "yes")]]
         b = binary_collapse(records)
-        self.assertEqual(b["agreement"], 50.0)
-        self.assertEqual(b["per_class"]["wrong"], {"precision": 50.0, "recall": 50.0, "f1": 50.0, "support": 2})
-        self.assertEqual(b["per_class"]["acceptable"]["recall"], 50.0)
+        self.assertEqual(b["agreement"], 75.0)  # partial→incorrect now agrees with judge "no"
+        self.assertEqual(b["per_class"]["incorrect"],
+                         {"precision": 100.0, "recall": 66.7, "f1": 80.0, "support": 3})
+        self.assertEqual(b["per_class"]["correct"]["recall"], 100.0)
 
 
 class TestAggMetrics(unittest.TestCase):
@@ -81,17 +82,32 @@ class TestAggMetrics(unittest.TestCase):
 
 class TestBinary(unittest.TestCase):
     def test_to_binary_mapping(self):
-        self.assertEqual(to_binary("no"), "wrong")
-        self.assertEqual(to_binary("yes"), "acceptable")
-        self.assertEqual(to_binary("partial"), "acceptable")
+        # Only Да is correct — Частично counts as incorrect (matches the solved policy).
+        self.assertEqual(to_binary("yes"), "correct")
+        self.assertEqual(to_binary("partial"), "incorrect")
+        self.assertEqual(to_binary("no"), "incorrect")
 
     def test_summarize_binary_labels(self):
-        pairs = [("wrong", "wrong"), ("acceptable", "acceptable"),
-                 ("acceptable", "wrong"), ("wrong", "acceptable")]
+        pairs = [("incorrect", "incorrect"), ("correct", "correct"),
+                 ("correct", "incorrect"), ("incorrect", "correct")]
         r = summarize(pairs, LABELS_BINARY, _ORDER_BINARY)
         self.assertEqual(r["agreement"], 50.0)
-        self.assertEqual(r["confusion"]["acceptable"]["wrong"], 1)
-        self.assertIn("wrong", r["confusion"])
+        self.assertEqual(r["confusion"]["correct"]["incorrect"], 1)
+        self.assertIn("incorrect", r["confusion"])
+
+
+class TestFailureBreakdown(unittest.TestCase):
+    def test_counts_and_human_confirmation(self):
+        from calibrate import failure_breakdown
+        records = [
+            {"human_label": "yes", "verdict": "yes", "failure_reason": "none"},
+            {"human_label": "no", "verdict": "no", "failure_reason": "no_answer"},
+            {"human_label": "yes", "verdict": "no", "failure_reason": "no_answer"},   # false alarm
+            {"human_label": "partial", "verdict": "partial", "failure_reason": "incomplete"},
+        ]
+        b = failure_breakdown(records)
+        self.assertEqual(b[0], {"reason": "no_answer", "count": 2, "human_also_incorrect": 1})
+        self.assertEqual(b[1], {"reason": "incomplete", "count": 1, "human_also_incorrect": 1})
 
 
 class TestDisagreementCsv(unittest.TestCase):

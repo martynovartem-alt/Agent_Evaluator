@@ -207,9 +207,13 @@ python3 dataset.py current_agent_answers.xlsx data/labeled.jsonl
 python3 calibrate.py --dataset data/labeled.jsonl
 ```
 
-Output: **agreement %** + a 3×3 confusion matrix (human × judge), plus a
-`runs/<ts>/disagreements.csv` listing every row where the judge and human differ — with the
-judge's reasoning next to the human's comment. Use that CSV to tune `prompts/resolution.md`, then
+Output: **agreement %** + a 3×3 confusion matrix (human × judge), per-class
+**precision/recall/F1**, the headline **binary scale** (correct = Да only; **Частично counts as
+incorrect**, matching the solved policy), and a **failure-reason breakdown** for judge-flagged
+incorrect rows (wrong_operation / hallucination / incomplete / no_answer / missed_data / other,
+each with how many the human also graded incorrect). Plus a `runs/<ts>/disagreements.csv`
+listing every row where the judge and human differ — with the judge's failure reason and
+reasoning next to the human's comment. Use that CSV to tune `prompts/resolution.md`, then
 re-run. (`--all-rows` writes every row; `--csv PATH` overrides the location.)
 
 To measure whether the panel actually beats the single judge, A/B the same labeled set:
