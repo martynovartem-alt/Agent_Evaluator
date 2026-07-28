@@ -69,8 +69,10 @@ takes hours — so the flow is **preflight first, then full**:
 python3 eval_fast.py --dataset "Agents-new-answers(after_20_07_2026).xlsx"
 
 # preflight + every labeled row: agreement, kappa, per-class precision/recall,
-# binary correct/incorrect, failure-reason breakdown, disagreements.csv
-python3 eval_full.py --dataset "Agents-new-answers(after_20_07_2026).xlsx"
+# binary correct/incorrect, failure-reason breakdown, scope/intent segmentation,
+# disagreements.csv. --classify-scope adds an LLM scope label (cached) for rows
+# without a backend Intent — out-of-scope rows are reported, not dropped.
+python3 eval_full.py --dataset "Agents-new-answers(after_20_07_2026).xlsx" --classify-scope
 ```
 
 Both accept the `.xlsx` directly (converted to a temp jsonl **outside** the repo — the raw

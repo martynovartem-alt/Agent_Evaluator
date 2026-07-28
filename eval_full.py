@@ -31,6 +31,8 @@ def main() -> int:
     parser.add_argument("--csv", default=None, help="CSV path (default: runs/<ts>/disagreements.csv)")
     parser.add_argument("--all-rows", action="store_true", help="write every row to the CSV")
     parser.add_argument("--repeat", type=int, default=1, help="run N times → mean ± std")
+    parser.add_argument("--classify-scope", action="store_true",
+                        help="LLM-classify scope for rows without a backend intent (cached)")
     args = parser.parse_args()
 
     jsonl = eval_fast.ensure_jsonl(args.dataset)
@@ -43,7 +45,7 @@ def main() -> int:
         print("── full eval ──")
 
     asyncio.run(calibrate.main(jsonl, csv_path=args.csv, all_rows=args.all_rows,
-                               repeat=args.repeat))
+                               repeat=args.repeat, classify_scope=args.classify_scope))
     return 0
 
 

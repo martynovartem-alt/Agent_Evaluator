@@ -76,6 +76,17 @@ prompt = "prompts/resolution_prosecutor.md"
 name = "defender"                  # credits what the hint got right before voting
 prompt = "prompts/resolution_defender.md"
 
+[scope]                            # dialogue scope classifier (in/out of the agent's remit;
+mode = "auto"                      # used by calibrate --classify-scope for rows without a
+provider = "openai"                # backend intent label; results cached in data/scope_cache.json)
+base_url = "https://agenapisandbox.moscow.alfaintra.net/internal/llm/v1"
+api_key_env = "SANDBOX_API_KEY"
+system_id = "sanduser"
+rps = 0.2
+model = "Qwen/Qwen3.6-35B-A3B-FP8"
+prompt = "prompts/scope.md"
+effort = "medium"
+
 [mcp]                              # transaction tool backend (MCPClear)
 mode = "fixture"                   # fixture | live
 transport = "stdio"                # stdio | http

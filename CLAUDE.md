@@ -157,6 +157,14 @@ the human also graded incorrect). This validates the judge — the "Ground Truth
 architecture. Baseline with the always-`yes` stub is ~8% (the `Да` share); the real judge
 must beat it.
 
+Calibration is **scope-segmented**: each row gets `scope` ∈ in_scope/out_of_scope/unknown —
+deterministic rule on the backend `Intent` label (`judges/scope.py` markers) when exported,
+`--classify-scope` → LLM classifier (`[scope]` role, `prompts/scope.md`, cached in
+`data/scope_cache.json`, gitignored) for rows without one. The report/console carry
+`by_scope` (n, human-correct %, judge agreement/kappa per segment) and `by_intent`
+(top intents, n≥10); scope+intent land in disagreements.csv. Don't drop out-of-scope rows —
+they measure correct-refusal (`no_comments`) behavior.
+
 The resolution prompts include few-shot examples distilled — anonymized and paraphrased, real
 data never verbatim — from labeled rows (clarifier-as-right-move vs cop-out, hedged reading vs
 confident misidentification, mechanism-without-cause, wrong-direction search); agreement on the

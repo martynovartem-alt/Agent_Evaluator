@@ -75,6 +75,11 @@ agent answer was graded `Да / Частично / Нет`.
               │   BINARY (headline): correct = «Да» only;          │
               │     «Частично» → incorrect (matches solved policy) │
               │   failure reasons w/ human-confirmation counts     │
+              │   scope segments (in/out/unknown) + top intents:   │
+              │     backend Intent → rule (judges/scope.py);       │
+              │     --classify-scope → LLM [scope] role, cached    │
+              │     (out-of-scope rows reported, never dropped —   │
+              │      they measure correct-refusal behavior)        │
               │   runs/<ts>/disagreements.csv (UTF-8-BOM, Excel)   │
               └────────────────────────────────────────────────────┘
 ```

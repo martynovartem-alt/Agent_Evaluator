@@ -19,12 +19,14 @@ from datetime import datetime
 from pathlib import Path
 
 import config
+from judges import scope as scope_mod
 from judges.resolution import FAILURE_REASONS, judge_resolution
 
 LABELS = ["yes", "partial", "no"]
 LABELS_BINARY = ["correct", "incorrect"]
-CSV_FIELDS = ["id", "human_label", "verdict", "failure_reason", "agree", "reasoning",
-              "agent_answer", "operator_answer", "dialogue", "assessor_comment"]
+SCOPES = ["in_scope", "out_of_scope", "unknown"]
+CSV_FIELDS = ["id", "human_label", "verdict", "failure_reason", "scope", "intent", "agree",
+              "reasoning", "agent_answer", "operator_answer", "dialogue", "assessor_comment"]
 
 
 def to_binary(label: str) -> str:
@@ -100,6 +102,8 @@ async def score_row(row: dict, binary: bool = False) -> dict:
         "human_label": human,
         "verdict": verdict,
         "failure_reason": result.get("failure_reason", "none"),
+        "scope": row.get("scope", "unknown"),
+        "intent": row.get("intent_norm", scope_mod.norm_intent(row.get("intent", ""))),
         "reasoning": result.get("reasoning", ""),
         "agent_answer": row.get("agent_answer", ""),
         "operator_answer": row.get("operator_answer", ""),
@@ -168,6 +172,93 @@ def failure_breakdown(records: list[dict]) -> list[dict]:
     return sorted(out, key=lambda x: -x["count"])
 
 
+async def assign_scopes(rows: list[dict], classify: bool = False) -> None:
+    """Attach `scope` + `intent_norm` to every row. Backend intent → deterministic rule;
+    no intent → LLM classifier (when `classify`, cache-first) else "unknown"."""
+    cache = scope_mod.load_cache() if classify else {}
+    changed = False
+    sem = asyncio.Semaphore(config.JUDGE_CONCURRENCY)
+
+    async def one(row):
+        nonlocal changed
+        intent = scope_mod.norm_intent(row.get("intent", ""))
+        row["intent_norm"] = intent
+        scope = scope_mod.scope_from_intent(intent)
+        if not scope and classify:
+            key = scope_mod.cache_key(row.get("dialogue", ""))
+            if key in cache:
+                scope = cache[key]["scope"]
+            else:
+                async with sem:
+                    out = await scope_mod.classify_scope(row.get("dialogue", ""))
+                scope = out["scope"]
+                if scope != "unknown":   # don't cache failures — retry them next run
+                    cache[key] = {"scope": scope, "topic": out.get("topic", "")}
+                    changed = True
+        row["scope"] = scope or "unknown"
+
+    await asyncio.gather(*(one(r) for r in rows))
+    if changed:
+        scope_mod.save_cache(cache)
+
+
+def _binlabel(v: str) -> str:
+    return v if v in LABELS_BINARY else to_binary(v)
+
+
+def scope_summary(records: list[dict]) -> dict:
+    """Per-segment view: how often the agent is correct there (human base rate) and how
+    well the judge tracks the humans (binary agreement/kappa)."""
+    out = {}
+    for seg in SCOPES:
+        sub = [r for r in records if r.get("scope") == seg]
+        if not sub:
+            continue
+        s = summarize([(_binlabel(r["human_label"]), _binlabel(r["verdict"])) for r in sub],
+                      LABELS_BINARY, _ORDER_BINARY)
+        human_correct = sum(1 for r in sub if _binlabel(r["human_label"]) == "correct")
+        out[seg] = {"n": len(sub), "human_correct_pct": round(human_correct / len(sub) * 100, 1),
+                    "agreement": s["agreement"], "kappa": s["kappa"]}
+    return out
+
+
+def intent_summary(records: list[dict], min_n: int = 10) -> list[dict]:
+    """Per-intent view for intents with enough rows: agent correctness (human) + judge
+    binary agreement. Rows without an exported intent are excluded."""
+    groups: dict[str, list[dict]] = {}
+    for r in records:
+        if r.get("intent"):
+            groups.setdefault(r["intent"], []).append(r)
+    out = []
+    for intent, sub in sorted(groups.items(), key=lambda kv: -len(kv[1])):
+        if len(sub) < min_n:
+            continue
+        human_correct = sum(1 for r in sub if _binlabel(r["human_label"]) == "correct")
+        agree = sum(1 for r in sub if _binlabel(r["human_label"]) == _binlabel(r["verdict"]))
+        out.append({"intent": intent, "n": len(sub),
+                    "human_correct_pct": round(human_correct / len(sub) * 100, 1),
+                    "judge_agreement_pct": round(agree / len(sub) * 100, 1)})
+    return out
+
+
+def _print_scope(by_scope: dict) -> None:
+    if not by_scope:
+        return
+    print("scope segments (binary):")
+    for seg, s in by_scope.items():
+        print(f"  {seg:>12}  n={s['n']:<5} human correct {s['human_correct_pct']:5}% | "
+              f"judge agreement {s['agreement']}% | kappa {s['kappa']}")
+
+
+def _print_intents(by_intent: list[dict]) -> None:
+    if not by_intent:
+        return
+    print(f"top intents (n≥{10}):")
+    for i in by_intent:
+        print(f"  {i['intent'][:46]:<48} n={i['n']:<5} human correct {i['human_correct_pct']:5}% | "
+              f"judge agreement {i['judge_agreement_pct']}%")
+
+
 def _print_failures(breakdown: list[dict]) -> None:
     if not breakdown:
         return
@@ -190,13 +281,15 @@ def judge_banner() -> str:
 
 
 async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = False,
-               limit: int | None = None, binary: bool = False, repeat: int = 1) -> None:
+               limit: int | None = None, binary: bool = False, repeat: int = 1,
+               classify_scope: bool = False) -> None:
     rows = [r for r in load(dataset_path) if r.get("human_label") in LABELS]
     if limit:
         rows = rows[:limit]
     labels, order = (LABELS_BINARY, _ORDER_BINARY) if binary else (LABELS, _ORDER)
     print(f"judge: {judge_banner()}{'  [binary: correct/incorrect]' if binary else ''}"
           f"{f'  × {repeat} runs' if repeat > 1 else ''}")
+    await assign_scopes(rows, classify_scope)
 
     sem = asyncio.Semaphore(config.JUDGE_CONCURRENCY)
 
@@ -221,11 +314,13 @@ async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = 
 
     binary_summary = None if binary else binary_collapse(last_records)
     failures = failure_breakdown(last_records)
+    by_scope = scope_summary(last_records)
+    by_intent = intent_summary(last_records)
     if repeat > 1:
         agg = agg_metrics(reports)
         conf_avg = {h: {j: round(statistics.mean(r["confusion"][h][j] for r in reports), 1) for j in labels} for h in labels}
         result = {"n": reports[0]["n"], "repeat": repeat, **agg, "runs": reports, "confusion_avg": conf_avg,
-                  "failure_reasons": failures}
+                  "failure_reasons": failures, "by_scope": by_scope, "by_intent": by_intent}
         if binary_summary:
             result["binary_collapse"] = binary_summary  # from the last run's records
         (run_dir / "calibration.json").write_text(json.dumps(result, ensure_ascii=False, indent=2))
@@ -237,6 +332,8 @@ async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = 
     else:
         report = reports[0]
         report["failure_reasons"] = failures
+        report["by_scope"] = by_scope
+        report["by_intent"] = by_intent
         if binary_summary:
             report["binary_collapse"] = binary_summary
         (run_dir / "calibration.json").write_text(json.dumps(report, ensure_ascii=False, indent=2))
@@ -250,6 +347,8 @@ async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = 
               f"agreement {binary_summary['agreement']}% | kappa {binary_summary['kappa']}")
         _print_pr(binary_summary, LABELS_BINARY)
     _print_failures(failures)
+    _print_scope(by_scope)
+    _print_intents(by_intent)
     print(f"{'rows' if all_rows else 'disagreements'}: {n_csv} → {out_csv}")
 
 
@@ -262,5 +361,8 @@ if __name__ == "__main__":
     parser.add_argument("--binary", action="store_true",
                         help="score on the binary scale: correct vs incorrect (Частично → incorrect)")
     parser.add_argument("--repeat", type=int, default=1, help="run N times → mean ± std (beats per-run noise)")
+    parser.add_argument("--classify-scope", action="store_true",
+                        help="LLM-classify scope for rows without a backend intent (cached)")
     args = parser.parse_args()
-    asyncio.run(main(args.dataset, args.csv, args.all_rows, args.limit, args.binary, args.repeat))
+    asyncio.run(main(args.dataset, args.csv, args.all_rows, args.limit, args.binary, args.repeat,
+                     args.classify_scope))

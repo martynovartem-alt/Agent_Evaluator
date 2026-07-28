@@ -53,6 +53,7 @@ _DEFAULTS = {
     "agent": {"model": "claude-opus-4-8", "prompt": "prompts/agent.md", "effort": "medium"},
     "groundedness": {"model": "claude-opus-4-8", "prompt": "prompts/groundedness.md", "effort": "medium"},
     "resolution": {"model": "claude-opus-4-8", "prompt": "prompts/resolution.md", "effort": "medium"},
+    "scope": {"model": "claude-opus-4-8", "prompt": "prompts/scope.md", "effort": "medium"},
 }
 
 

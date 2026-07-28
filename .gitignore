@@ -11,3 +11,4 @@ MCP_Answer_Json
 data/labeled.jsonl
 data/eval_prompt*.jsonl
 data/labeled_new.jsonl
+data/scope_cache.json
