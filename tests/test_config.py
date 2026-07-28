@@ -50,6 +50,18 @@ class TestAgentSpecs(unittest.TestCase):
     def test_provider_field(self):
         self.assertIn(config.get("agent").provider, {"anthropic", "openai"})
 
+    def test_sandbox_roles_carry_contract_fields(self):
+        # Invariant, not a deployment pin: any role pointing at the Alfa Sandbox must carry
+        # the documented contract ("4. Sandbox API.pdf": systemid header + 0.2 RPS limit).
+        # Roles moved to other endpoints (DeepSeek, local, ...) are exempt.
+        specs = [config.get(r) for r in ROLES] + config.panel("resolution")
+        sandbox = [s for s in specs if "agenapisandbox" in s.base_url]
+        if not sandbox:
+            self.skipTest("no role points at the Alfa Sandbox in this config")
+        for s in sandbox:
+            self.assertEqual(s.system_id, "sanduser")
+            self.assertEqual(s.rps, 0.2)
+
     def test_mode_override_via_env(self):
         os.environ["RESOLUTION_MODE"] = "offline"
         try:

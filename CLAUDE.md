@@ -29,7 +29,12 @@ python3 calibrate.py --dataset data/labeled.jsonl                  # or data/lab
 ## Configuration — per-agent (agents.toml + config.py)
 
 Each LLM role in the pipeline is configured **independently** in `agents.toml`: its own
-`base_url` (endpoint), `model`, `prompt`, `effort`, and `mode`. Three roles:
+`base_url` (endpoint), `model`, `prompt`, `effort`, and `mode` — plus, for the Alfa
+Sandbox/AlfaGen API (`4. Sandbox API.pdf`): `system_id` (sent as the `systemid` header, with
+a fresh unique `messageid` per request) and `rps` (endpoint rate limit; Sandbox = 0.2 RPS,
+enforced by a shared per-endpoint throttle in `oai.py`). Sandbox is VPN/VDI-only; tools
+(function calling) are documented only for QwQ-32B / llama-3.3 / gpt-oss-120b, so `[agent]`
+must use one of those. Three roles:
 `[agent]` (system under test), `[groundedness]`, `[resolution]`. Plus `[mcp]` (tool backend)
 and `[pipeline]`. Secrets stay in env — each role's `api_key_env` names its key var (falls back
 to `ANTHROPIC_API_KEY`); a local `.env` (from `.env.example`, gitignored) is loaded for convenience.
@@ -45,8 +50,10 @@ anthropic.Anthropic(**config.client_kwargs(spec))   # client at this role's endp
 Point a role at a different endpoint/model/prompt by editing its section — e.g. run the agent
 under test on one deployment and the judges on another. `base_url` must be Anthropic-compatible.
 Env overrides: `EVAL_CONFIG` (config path), `{ROLE}_MODE` (`AGENT_MODE`/`GROUNDEDNESS_MODE`/
-`RESOLUTION_MODE`), `MCP_*`, `JUDGE_CONCURRENCY`. `mode=auto` → LLM iff a key is present, else the
-offline path — so everything runs with no key. `MCP_MODE=live` routes `MCPClear` through
+`RESOLUTION_MODE`), `MCP_*`, `JUDGE_CONCURRENCY`. `mode=auto` → LLM iff the role is usable: a key
+is present, or (provider=openai) any `base_url` is set — so the shipped Sandbox config counts as
+usable even keyless, and off the bank network you must force `*_MODE=offline` for all three roles
+to run fully offline. `MCP_MODE=live` routes `MCPClear` through
 `mcp_client.py` (needs `pip install mcp`); adapt `_tool_args` to your server's tool schema.
 
 ## Architecture

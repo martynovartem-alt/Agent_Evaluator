@@ -8,40 +8,51 @@
 # mode            -> auto (LLM iff a key is available) | llm | offline
 
 # provider: "anthropic" (base_url "" + claude-* model) or "openai" (OpenAI-compatible).
-# Pointed at the Alfa internal Sandbox API. Put the Sandbox key in .env as SANDBOX_API_KEY.
-# Available-now models (set model = one of these; A/B via env, e.g. RESOLUTION_MODEL=...):
-#   Qwen/Qwen3.6-35B-A3B-FP8   (newest, recommended judge)
-#   Qwen/QwQ-32B               (dense reasoning; A/B against 3.6)
-#   Qwen/Qwen3-Coder-Next  ·  gpt-oss-120b  ·  /models/llama-3.3
-# Coming soon: Qwen/Qwen3.5-122B-A10B-FP8, openai/t-tech/T-pro-it-2.1-FP8, deepseek-ai/DeepSeek-V4-Flash
+#
+# All roles run on the bank's Alfa Sandbox API (AlfaGen) — see "4. Sandbox API.pdf" and
+# Alfa_LLM_endpoints.png: POST {base_url}/chat/completions. Sandbox rules encoded below:
+#   - key: UUID issued by email → .env SANDBOX_API_KEY (Bearer); access lasts 3 months
+#   - headers: systemid = "sanduser" (406 without it); unique messageid per request (oai.py)
+#   - rate limit 0.2 RPS → `rps = 0.2` throttles all calls to the endpoint (shared slots)
+#   - network: VPN/VDI only — off-network use the offline path (*_MODE=offline) or another endpoint
+# Models available now (A/B via env, e.g. RESOLUTION_MODEL=...):
+#   Qwen/Qwen3.6-35B-A3B-FP8   (newest, recommended judge; multimodal)
+#   Qwen/QwQ-32B               (reasoning)  ·  Qwen/Qwen3-Coder-Next  ·  gpt-oss-120b  ·  /models/llama-3.3
+#   Tools (function calling) are documented ONLY for: Qwen/QwQ-32B, /models/llama-3.3, gpt-oss-120b.
+# Coming soon: Qwen/Qwen3.5-122B-A10B-FP8, google/gemma-4-26B-A4B-it, deepseek-ai/DeepSeek-V4-Flash
 
 [agent]                            # the support agent under test (Agent X)
 mode = "auto"
 provider = "openai"
 base_url = "https://agenapisandbox.moscow.alfaintra.net/internal/llm/v1"
 api_key_env = "SANDBOX_API_KEY"
-model = "Qwen/Qwen3.6-35B-A3B-FP8"
+system_id = "sanduser"
+rps = 0.2
+model = "gpt-oss-120b"             # needs MCPClear/getInstruction tool calls — tools are documented
+                                   # for QwQ-32B / llama-3.3 / gpt-oss-120b only; if your production
+                                   # agent runs Qwen3.6-35B, switch back and verify tool calls work
 prompt = "agent_prompt_v2.md"      # verbatim production prompt (prompts/agent.md is the derived alt)
 effort = "medium"
 
-# Judges run on the public DeepSeek API (OpenAI-compatible /v1; key in .env as
-# DEEPSEEK_API_KEY) — reachable off the Alfa network. To move a judge back to the
-# Sandbox, restore base_url/api_key_env/model to the [agent] values above.
-[groundedness]                     # knowledge-grounding judge
+[groundedness]                     # knowledge-grounding judge (no tools needed)
 mode = "auto"
 provider = "openai"
-base_url = "https://api.deepseek.com/v1"
-api_key_env = "DEEPSEEK_API_KEY"
-model = "deepseek-chat"
+base_url = "https://agenapisandbox.moscow.alfaintra.net/internal/llm/v1"
+api_key_env = "SANDBOX_API_KEY"
+system_id = "sanduser"
+rps = 0.2
+model = "Qwen/Qwen3.6-35B-A3B-FP8"
 prompt = "prompts/groundedness.md"
 effort = "medium"
 
-[resolution]                       # resolution judge (examiner)
+[resolution]                       # resolution judge (examiner; no tools needed)
 mode = "auto"
 provider = "openai"
-base_url = "https://api.deepseek.com/v1"
-api_key_env = "DEEPSEEK_API_KEY"
-model = "deepseek-chat"
+base_url = "https://agenapisandbox.moscow.alfaintra.net/internal/llm/v1"
+api_key_env = "SANDBOX_API_KEY"
+system_id = "sanduser"
+rps = 0.2
+model = "Qwen/Qwen3.6-35B-A3B-FP8"
 prompt = "prompts/resolution.md"
 effort = "medium"
 
@@ -50,8 +61,9 @@ effort = "medium"
 # Each [[resolution.panel]] entry inherits [resolution] and overrides fields (prompt, model, ...).
 # The judges run at temperature 0, so identical prompts would vote identically — diversity
 # comes from the personas (or point panelists at different models for a mixed bench).
-# Triples resolution calls per case; lower [pipeline].concurrency if the endpoint rate-limits.
-# Disable (single judge, for A/B in calibrate.py): RESOLUTION_PANEL=off, or comment these out.
+# NOTE: at the Sandbox 0.2 RPS limit the panel triples wall-clock (one call per 5 s, shared);
+# measured A/B showed the single judge ≥ panel on kappa, so for Sandbox runs prefer
+# RESOLUTION_PANEL=off (or comment these entries out).
 [[resolution.panel]]
 name = "judge"                     # neutral examiner — same prompt as the single judge
 prompt = "prompts/resolution.md"

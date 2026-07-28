@@ -134,11 +134,14 @@ Cases:
 [agent]                                    # проверяемый агент поддержки
 provider = "openai"                        # "anthropic" | "openai" (OpenAI-совместимый)
 base_url = "https://agenapisandbox.moscow.alfaintra.net/internal/llm/v1"
-model    = "Qwen/Qwen3.6-35B-A3B-FP8"
+system_id = "sanduser"                     # заголовок `systemid` Sandbox (без него — 406)
+rps      = 0.2                             # жёсткий лимит Sandbox — один запрос в 5 с, общий
+model    = "gpt-oss-120b"                  # агент вызывает инструменты; tools в Sandbox
+                                           # документированы только для QwQ-32B / llama-3.3 / gpt-oss-120b
 prompt   = "agent_prompt_v2.md"            # его системный промпт (замените файл, чтобы изменить)
 effort   = "medium"
 mode     = "auto"                          # auto | llm | offline
-api_key_env = "SANDBOX_API_KEY"            # переменная окружения с его ключом
+api_key_env = "SANDBOX_API_KEY"            # переменная окружения с его ключом (UUID из письма)
 
 [groundedness]   # ... свой provider / эндпоинт / модель / промпт ...
 [resolution]     # ... свой provider / эндпоинт / модель / промпт ...

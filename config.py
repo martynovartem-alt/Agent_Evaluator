@@ -71,6 +71,8 @@ class AgentSpec:
     effort: str        # low | medium | high (Anthropic only)
     prompt: str        # path, relative to repo root
     name: str = ""     # panelist name in panel voting; defaults to the role name
+    system_id: str = ""  # `systemid` header (Alfa Sandbox/AlfaGen API); "" → header not sent
+    rps: float = 0.0     # endpoint rate limit, requests/sec (Sandbox: 0.2); 0 → unlimited
 
     def prompt_text(self) -> str:
         return (ROOT / self.prompt).read_text()
@@ -102,6 +104,7 @@ def _resolve(role: str, cfg: dict, name: str = "") -> AgentSpec:
         base_url=cfg.get("base_url", ""), api_key=api_key,
         model=cfg["model"], effort=cfg.get("effort", "medium"), prompt=cfg["prompt"],
         name=name or role,
+        system_id=cfg.get("system_id", ""), rps=float(cfg.get("rps", 0) or 0),
     )
 
 

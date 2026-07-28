@@ -130,11 +130,14 @@ mix providers across roles. The shipped config points every role at the Alfa San
 [agent]                                    # the support agent under test
 provider = "openai"                        # "anthropic" | "openai" (OpenAI-compatible)
 base_url = "https://agenapisandbox.moscow.alfaintra.net/internal/llm/v1"
-model    = "Qwen/Qwen3.6-35B-A3B-FP8"
+system_id = "sanduser"                     # Sandbox `systemid` header (406 without it)
+rps      = 0.2                             # Sandbox hard limit — one request per 5 s, shared
+model    = "gpt-oss-120b"                  # the agent calls tools; Sandbox documents tools
+                                           # only for QwQ-32B / llama-3.3 / gpt-oss-120b
 prompt   = "agent_prompt_v2.md"            # its system prompt (swap the file to change it)
 effort   = "medium"
 mode     = "auto"                          # auto | llm | offline
-api_key_env = "SANDBOX_API_KEY"            # env var holding its key
+api_key_env = "SANDBOX_API_KEY"            # env var holding its key (UUID issued by email)
 
 [groundedness]   # ... own provider / endpoint / model / prompt ...
 [resolution]     # ... own provider / endpoint / model / prompt ...
