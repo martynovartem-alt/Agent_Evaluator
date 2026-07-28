@@ -177,22 +177,25 @@ def _print_failures(breakdown: list[dict]) -> None:
         print(f"  {b['reason']:>15}  {b['count']:4}  (confirmed: {b['human_also_incorrect']})")
 
 
+def judge_banner() -> str:
+    """Human-readable description of the active resolution judge (shared with eval_fast)."""
+    spec = config.get("resolution")
+    panel = config.panel("resolution") if spec.available() else []
+    if panel:
+        models = "/".join(sorted({p.model for p in panel}))
+        return f"panel of {len(panel)}: {', '.join(p.name for p in panel)} ({models}, effort {spec.effort})"
+    if spec.available():
+        return f"LLM ({spec.model}, effort {spec.effort})"
+    return "stub (no LLM)"
+
+
 async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = False,
                limit: int | None = None, binary: bool = False, repeat: int = 1) -> None:
     rows = [r for r in load(dataset_path) if r.get("human_label") in LABELS]
     if limit:
         rows = rows[:limit]
     labels, order = (LABELS_BINARY, _ORDER_BINARY) if binary else (LABELS, _ORDER)
-    spec = config.get("resolution")
-    panel = config.panel("resolution") if spec.available() else []
-    if panel:
-        models = "/".join(sorted({p.model for p in panel}))
-        judge = f"panel of {len(panel)}: {', '.join(p.name for p in panel)} ({models}, effort {spec.effort})"
-    elif spec.available():
-        judge = f"LLM ({spec.model}, effort {spec.effort})"
-    else:
-        judge = "stub (no LLM)"
-    print(f"judge: {judge}{'  [binary: acceptable/wrong]' if binary else ''}"
+    print(f"judge: {judge_banner()}{'  [binary: correct/incorrect]' if binary else ''}"
           f"{f'  × {repeat} runs' if repeat > 1 else ''}")
 
     sem = asyncio.Semaphore(config.JUDGE_CONCURRENCY)
