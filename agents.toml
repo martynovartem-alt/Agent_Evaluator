@@ -24,21 +24,24 @@ model = "Qwen/Qwen3.6-35B-A3B-FP8"
 prompt = "agent_prompt_v2.md"      # verbatim production prompt (prompts/agent.md is the derived alt)
 effort = "medium"
 
+# Judges run on the public DeepSeek API (OpenAI-compatible /v1; key in .env as
+# DEEPSEEK_API_KEY) — reachable off the Alfa network. To move a judge back to the
+# Sandbox, restore base_url/api_key_env/model to the [agent] values above.
 [groundedness]                     # knowledge-grounding judge
 mode = "auto"
 provider = "openai"
-base_url = "https://agenapisandbox.moscow.alfaintra.net/internal/llm/v1"
-api_key_env = "SANDBOX_API_KEY"
-model = "Qwen/Qwen3.6-35B-A3B-FP8"
+base_url = "https://api.deepseek.com/v1"
+api_key_env = "DEEPSEEK_API_KEY"
+model = "deepseek-chat"
 prompt = "prompts/groundedness.md"
 effort = "medium"
 
 [resolution]                       # resolution judge (examiner)
 mode = "auto"
 provider = "openai"
-base_url = "https://agenapisandbox.moscow.alfaintra.net/internal/llm/v1"
-api_key_env = "SANDBOX_API_KEY"
-model = "Qwen/Qwen3.6-35B-A3B-FP8"
+base_url = "https://api.deepseek.com/v1"
+api_key_env = "DEEPSEEK_API_KEY"
+model = "deepseek-chat"
 prompt = "prompts/resolution.md"
 effort = "medium"
 

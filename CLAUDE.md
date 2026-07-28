@@ -133,7 +133,9 @@ Determinism comes from `effort` + structured outputs — not `temperature`.
 
 The resolution judge's target is the human `Is agents answer correct?` label. `calibrate.py`
 scores each labeled row's existing agent answer and reports exact-match agreement + a 3×3
-confusion matrix (human × judge). This validates the judge — the "Ground Truth" arm of the
+confusion matrix (human × judge), per-class precision/recall/F1 + macro, and a binary collapse
+(acceptable = yes+partial vs wrong = no; derived from the same records, no extra judge calls —
+`binary_collapse` in calibration.json). This validates the judge — the "Ground Truth" arm of the
 architecture. Baseline with the always-`yes` stub is ~8% (the `Да` share); the real judge
 must beat it.
 

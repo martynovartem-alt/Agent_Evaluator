@@ -63,11 +63,25 @@ def summarize(pairs: list[tuple[str, str]], labels: list | None = None, order: d
     po = agree / n if n else 0.0
     pe = sum(row[l] * col[l] for l in labels) / (n * n) if n else 0.0
     kappa = round((po - pe) / (1 - pe), 3) if n and pe != 1 else 0.0
+    # Per-class precision (judge said l → human agreed) / recall (human said l → judge found it).
+    per_class = {}
+    for l in labels:
+        tp = confusion[l][l]
+        prec = tp / col[l] if col[l] else 0.0
+        rec = tp / row[l] if row[l] else 0.0
+        f1 = 2 * prec * rec / (prec + rec) if prec + rec else 0.0
+        per_class[l] = {"precision": round(prec * 100, 1), "recall": round(rec * 100, 1),
+                        "f1": round(f1 * 100, 1), "support": row[l]}
+    k = len(labels)
     return {
         "n": n,
         "agreement": round(po * 100, 1) if n else 0.0,
         "kappa": kappa,
         "within1": round(within1 / n * 100, 1) if n else 0.0,
+        "per_class": per_class,
+        "macro_precision": round(sum(c["precision"] for c in per_class.values()) / k, 1),
+        "macro_recall": round(sum(c["recall"] for c in per_class.values()) / k, 1),
+        "macro_f1": round(sum(c["f1"] for c in per_class.values()) / k, 1),
         "confusion": confusion,
     }
 
@@ -123,6 +137,22 @@ def _print_confusion(confusion: dict, labels: list) -> None:
         print(f"  {h:>10}  " + "".join(f"{confusion[h][j]:>11}" for j in labels))
 
 
+def _print_pr(report: dict, labels: list) -> None:
+    print("precision/recall (per class):")
+    for l in labels:
+        c = report["per_class"][l]
+        print(f"  {l:>10}  P {c['precision']:5}%  R {c['recall']:5}%  F1 {c['f1']:5}%  (n={c['support']})")
+    print(f"  {'macro':>10}  P {report['macro_precision']:5}%  R {report['macro_recall']:5}%  "
+          f"F1 {report['macro_f1']:5}%")
+
+
+def binary_collapse(records: list[dict]) -> dict:
+    """Binary (acceptable vs wrong) summary derived from already-scored 3-way records —
+    no extra judge calls."""
+    pairs = [(to_binary(r["human_label"]), to_binary(r["verdict"])) for r in records]
+    return summarize(pairs, LABELS_BINARY, _ORDER_BINARY)
+
+
 async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = False,
                limit: int | None = None, binary: bool = False, repeat: int = 1) -> None:
     rows = [r for r in load(dataset_path) if r.get("human_label") in LABELS]
@@ -162,22 +192,33 @@ async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = 
     out_csv = Path(csv_path) if csv_path else run_dir / ("rows.csv" if all_rows else "disagreements.csv")
     n_csv = write_csv(last_records, out_csv, all_rows)
 
+    binary_summary = None if binary else binary_collapse(last_records)
     if repeat > 1:
         agg = agg_metrics(reports)
         conf_avg = {h: {j: round(statistics.mean(r["confusion"][h][j] for r in reports), 1) for j in labels} for h in labels}
         result = {"n": reports[0]["n"], "repeat": repeat, **agg, "runs": reports, "confusion_avg": conf_avg}
+        if binary_summary:
+            result["binary_collapse"] = binary_summary  # from the last run's records
         (run_dir / "calibration.json").write_text(json.dumps(result, ensure_ascii=False, indent=2))
         print(f"labeled rows: {result['n']} | agreement: {agg['agreement_mean']}%±{agg['agreement_std']} | "
               f"kappa: {agg['kappa_mean']}±{agg['kappa_std']} | within-1: {agg['within1_mean']}%±{agg['within1_std']}")
+        _print_pr(reports[-1], labels)
         print("avg confusion (rows = human, cols = judge):")
         _print_confusion(conf_avg, labels)
     else:
         report = reports[0]
+        if binary_summary:
+            report["binary_collapse"] = binary_summary
         (run_dir / "calibration.json").write_text(json.dumps(report, ensure_ascii=False, indent=2))
         print(f"labeled rows: {report['n']} | agreement: {report['agreement']}% | "
               f"kappa: {report['kappa']} | within-1: {report['within1']}%")
+        _print_pr(report, labels)
         print("confusion (rows = human, cols = judge):")
         _print_confusion(report["confusion"], labels)
+    if binary_summary:
+        print(f"binary collapse (acceptable = yes+partial, wrong = no): "
+              f"agreement {binary_summary['agreement']}% | kappa {binary_summary['kappa']}")
+        _print_pr(binary_summary, LABELS_BINARY)
     print(f"{'rows' if all_rows else 'disagreements'}: {n_csv} → {out_csv}")
 
 

@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from calibrate import (CSV_FIELDS, LABELS_BINARY, _ORDER_BINARY, agg_metrics,
-                       select_rows, summarize, to_binary, write_csv)
+                       binary_collapse, select_rows, summarize, to_binary, write_csv)
 from dataset import norm_label
 
 _RECORDS = [
@@ -44,6 +44,25 @@ class TestSummarize(unittest.TestCase):
 
     def test_empty(self):
         self.assertEqual(summarize([])["agreement"], 0.0)
+
+    def test_per_class_precision_recall(self):
+        pairs = [("yes", "yes"), ("no", "no"), ("partial", "no"), ("no", "yes")]
+        r = summarize(pairs)
+        # judge said yes twice (1 right) → P 50; the one human-yes was found → R 100
+        self.assertEqual(r["per_class"]["yes"], {"precision": 50.0, "recall": 100.0, "f1": 66.7, "support": 1})
+        # judge said no twice (1 right) → P 50; humans said no twice, 1 found → R 50
+        self.assertEqual(r["per_class"]["no"], {"precision": 50.0, "recall": 50.0, "f1": 50.0, "support": 2})
+        self.assertEqual(r["per_class"]["partial"]["precision"], 0.0)  # judge never said partial
+        self.assertEqual(r["macro_recall"], 50.0)   # (100 + 0 + 50) / 3
+        self.assertEqual(r["macro_precision"], 33.3)
+
+    def test_binary_collapse_from_records(self):
+        records = [{"human_label": h, "verdict": v} for h, v in
+                   [("yes", "yes"), ("no", "no"), ("partial", "no"), ("no", "yes")]]
+        b = binary_collapse(records)
+        self.assertEqual(b["agreement"], 50.0)
+        self.assertEqual(b["per_class"]["wrong"], {"precision": 50.0, "recall": 50.0, "f1": 50.0, "support": 2})
+        self.assertEqual(b["per_class"]["acceptable"]["recall"], 50.0)
 
 
 class TestAggMetrics(unittest.TestCase):

@@ -32,6 +32,7 @@ _HEADERS = {
     "full dialogue text": "dialogue",
     "is agents answer correct?": "human_label",
     "assesors comment": "assessor_comment",
+    "intent": "intent",
 }
 
 
@@ -55,15 +56,8 @@ def _col(ref: str) -> int:
     return n - 1
 
 
-def parse_xlsx(path: str) -> list[dict]:
-    z = zipfile.ZipFile(path)
-    strings = []
-    if "xl/sharedStrings.xml" in z.namelist():
-        root = ET.fromstring(z.read("xl/sharedStrings.xml"))
-        for si in root.findall(f"{NS}si"):
-            strings.append("".join(t.text or "" for t in si.iter(f"{NS}t")))
-
-    root = ET.fromstring(z.read("xl/worksheets/sheet1.xml"))
+def _sheet_rows(z: zipfile.ZipFile, name: str, strings: list[str]) -> list[dict]:
+    root = ET.fromstring(z.read(name))
     rows = []
     for row in root.iter(f"{NS}row"):
         cells = {}
@@ -77,8 +71,28 @@ def parse_xlsx(path: str) -> list[dict]:
                 val = v.text if v is not None else ""
             cells[_col(c.get("r"))] = val
         rows.append(cells)
+    return rows
 
-    if not rows:
+
+def parse_xlsx(path: str) -> list[dict]:
+    z = zipfile.ZipFile(path)
+    strings = []
+    if "xl/sharedStrings.xml" in z.namelist():
+        root = ET.fromstring(z.read("xl/sharedStrings.xml"))
+        for si in root.findall(f"{NS}si"):
+            strings.append("".join(t.text or "" for t in si.iter(f"{NS}t")))
+
+    # The labeled table isn't always the first sheet (some workbooks lead with a pivot):
+    # pick the worksheet whose header row matches the most known columns.
+    rows, best = [], 0
+    for name in sorted(n for n in z.namelist() if re.fullmatch(r"xl/worksheets/sheet\d+\.xml", n)):
+        candidate = _sheet_rows(z, name, strings)
+        if not candidate:
+            continue
+        score = sum(1 for v in candidate[0].values() if (v or "").strip().lower() in _HEADERS)
+        if score > best:
+            rows, best = candidate, score
+    if best < 3:  # no sheet looks like the labeled table
         return []
     header = {i: _HEADERS.get((v or "").strip().lower()) for i, v in rows[0].items()}
     records = []
