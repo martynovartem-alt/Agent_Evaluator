@@ -75,6 +75,13 @@ class SchemeDiagnostician:
                 add("config", "the judge is the offline stub — no live LLM was exercised",
                     ConfigError.default_fix, rid)
                 continue
+            if "[judge error:" in reasoning:
+                # error text without structured info (e.g. a panel vote absorbed by a yes
+                # majority) — still a scheme problem: the infrastructure is flaky
+                add("api", f"judge error in reasoning: {reasoning[:160]}",
+                    "read the error text: 'cannot reach' → connect the bank VPN/VDI; "
+                    "HTTP codes → the Sandbox error table ('4. Sandbox API.pdf')", rid)
+                continue
             verdict, reason = r.get("verdict"), r.get("failure_reason")
             if verdict not in calibrate.LABELS:
                 add("llm_output", f"invalid verdict {verdict!r}", LlmOutputError.default_fix, rid)
@@ -123,27 +130,11 @@ def load_labeled(path: str) -> list[dict]:
 
 
 def validate(records: list[dict]) -> list[str]:
-    """Scheme violations in judged records — empty list means the scheme is sound."""
-    problems = []
-    for r in records:
-        rid, verdict, reason = r.get("id", "?"), r.get("verdict"), r.get("failure_reason")
-        reasoning = r.get("reasoning", "")
-        if verdict not in calibrate.LABELS:
-            problems.append(f"{rid}: invalid verdict {verdict!r}")
-        if reason not in FAILURE_REASONS:
-            problems.append(f"{rid}: invalid failure_reason {reason!r}")
-        elif verdict == "yes" and reason != "none":
-            problems.append(f"{rid}: verdict yes but failure_reason {reason!r}")
-        elif verdict in ("partial", "no") and reason == "none":
-            problems.append(f"{rid}: verdict {verdict} but failure_reason 'none'")
-        if "[judge error:" in reasoning:
-            problems.append(f"{rid}: judge error — {reasoning[:160]}")
-        elif "[stub" in reasoning:
-            problems.append(f"{rid}: judge is the offline stub — no live LLM was exercised "
-                            f"(check the key, network/VPN, and *_MODE)")
-        elif not reasoning.strip():
-            problems.append(f"{rid}: empty reasoning")
-    return problems
+    """Scheme violations in judged records — empty list means the scheme is sound.
+    Derived from SchemeDiagnostician (single source of truth): one problem line per
+    affected row, so the pass/fail gate can never disagree with the printed diagnosis."""
+    return [f"{rid}: {f.problem}"
+            for f in SchemeDiagnostician().diagnose(records) for rid in f.rows]
 
 
 async def run_smoke(rows: list[dict], n: int) -> tuple[list[dict], float]:
@@ -197,12 +188,12 @@ def main(dataset_path: str, n: int) -> int:
         flag = "" if r["failure_reason"] == "none" else f"·{r['failure_reason']}"
         print(f"  {r['id']:>10}  {r['verdict']}{flag}")
 
-    problems = validate(records)
+    findings = SchemeDiagnostician().diagnose(records)
     print(f"elapsed: {elapsed:.0f}s for {len(records)} dialogues | "
           f"full run over {len(rows)} rows: {eta_text(elapsed, len(records), len(rows))}")
-    if problems:
-        print(f"SCHEME FAILED ({len(problems)} problem(s) in {len(records)} dialogues)")
-        findings = SchemeDiagnostician().diagnose(records)
+    if findings:
+        n_problems = sum(len(f.rows) for f in findings)
+        print(f"SCHEME FAILED ({n_problems} problem(s) in {len(records)} dialogues)")
         SchemeDiagnostician.print_findings(findings, len(records))
         return 1
     print("SCHEME OK — safe to run the full eval (python3 eval_full.py)")

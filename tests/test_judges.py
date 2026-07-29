@@ -148,6 +148,61 @@ class TestPanelVoting(unittest.TestCase):
         self.assertNotIn("votes", r)
 
 
+class TestErrorPlumbing(unittest.TestCase):
+    """Judge failures must carry structured error info (errors.py) for the diagnostician."""
+
+    def _patched(self, judge_fn, panel):
+        return (mock.patch.object(resolution_mod.config, "get", return_value=_panel_spec("resolution")),
+                mock.patch.object(resolution_mod.config, "panel", return_value=panel),
+                mock.patch.object(resolution_mod._llm, "judge_json", new=judge_fn))
+
+    def test_single_judge_error_carries_where_and_fix(self):
+        async def boom(spec, system, payload, schema):
+            raise RuntimeError("HTTP 406: no systemid")
+
+        p1, p2, p3 = self._patched(boom, [])
+        with p1, p2, p3:
+            r = asyncio.run(judge_resolution({"query": "q"}, {"answer": "a"}))
+        self.assertEqual(r["verdict"], "no")
+        self.assertEqual(r["error"]["where"], "api")
+        self.assertIn("what_to_do", r["error"])
+
+    def test_absorbed_vote_error_stays_on_vote_not_result(self):
+        async def flaky(spec, system, payload, schema):
+            if spec.name == "prosecutor":
+                raise RuntimeError("transient")
+            return {"verdict": "yes", "failure_reason": "none", "reasoning": spec.name}
+
+        p1, p2, p3 = self._patched(flaky, [_panel_spec(n) for n in ("judge", "prosecutor", "defender")])
+        with p1, p2, p3:
+            r = asyncio.run(judge_resolution({"query": "q"}, {"answer": "a"}))
+        self.assertEqual(r["verdict"], "yes")
+        self.assertEqual(r["votes"][1]["error"]["where"], "api")  # the vote keeps the info
+        self.assertNotIn("error", r)                              # a yes result is not an error
+
+    def test_all_votes_error_propagates_to_result(self):
+        async def boom(spec, system, payload, schema):
+            raise RuntimeError("down")
+
+        p1, p2, p3 = self._patched(boom, [_panel_spec(n) for n in ("judge", "prosecutor", "defender")])
+        with p1, p2, p3:
+            r = asyncio.run(judge_resolution({"query": "q"}, {"answer": "a"}))
+        self.assertEqual(r["verdict"], "no")
+        self.assertEqual(r["error"]["where"], "api")
+
+    def test_groundedness_error_non_penalizing_with_info(self):
+        from judges import _llm as llm_mod
+
+        async def boom(spec, system, payload, schema):
+            raise RuntimeError("down")
+
+        with mock.patch.object(config, "get", return_value=_panel_spec("groundedness")), \
+             mock.patch.object(llm_mod, "judge_json", new=boom):
+            r = asyncio.run(judge_groundedness({"query": "q"}, {"answer": "a"}))
+        self.assertFalse(r["has_unsupported_critical_claim"])  # infra failure doesn't penalize
+        self.assertEqual(r["error"]["where"], "api")
+
+
 class TestOfflineFallback(unittest.TestCase):
     def setUp(self):
         if config.get("resolution").available():

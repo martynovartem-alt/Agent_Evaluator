@@ -113,6 +113,34 @@ class TestRunSmoke(unittest.TestCase):
         self.assertEqual(eval_fast.validate(records), [])
         self.assertGreaterEqual(elapsed, 0.0)
 
+    def test_error_passthrough_judge_to_record_to_diagnosis(self):
+        # The full chain: judge error dict → score_row record → diagnostician finding.
+        async def failing_judge(case, trace):
+            return {"verdict": "no", "resolution_yes": False, "failure_reason": "other",
+                    "reasoning": "[judge error: boom]",
+                    "error": {"where": "api", "what_to_do": "connect VPN", "detail": "boom"}}
+
+        rows = [{"id": "r0", "human_label": "no", "dialogue": "q", "agent_answer": "a",
+                 "operator_answer": "o", "assessor_comment": ""}]
+        with mock.patch.object(calibrate, "judge_resolution", new=failing_judge):
+            records, _ = asyncio.run(eval_fast.run_smoke(rows, 1))
+        self.assertEqual(records[0]["error"]["where"], "api")   # score_row passes it through
+        findings = eval_fast.SchemeDiagnostician().diagnose(records)
+        self.assertEqual(findings[0].where, "api")
+        self.assertEqual(findings[0].what_to_do, "connect VPN")
+
+    def test_reasoning_only_judge_error_still_diagnosed(self):
+        # A vote error absorbed by a yes majority has no structured error — the scheme
+        # gate and the diagnosis must still agree (no "SCHEME FAILED with empty diagnosis").
+        records = [{"id": "r0", "verdict": "yes", "failure_reason": "none",
+                    "reasoning": "panel: judge→yes ⇒ yes. [judge] [judge error: timeout]"}]
+        problems = eval_fast.validate(records)
+        findings = eval_fast.SchemeDiagnostician().diagnose(records)
+        self.assertTrue(problems)
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].where, "api")
+        self.assertEqual(bool(problems), bool(findings))  # gate == diagnosis, by construction
+
 
 if __name__ == "__main__":
     unittest.main()

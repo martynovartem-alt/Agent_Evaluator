@@ -104,6 +104,7 @@ async def score_row(row: dict, binary: bool = False) -> dict:
         "failure_reason": result.get("failure_reason", "none"),
         "scope": row.get("scope", "unknown"),
         "intent": row.get("intent_norm", scope_mod.norm_intent(row.get("intent", ""))),
+        "error": result.get("error"),   # {where, what_to_do, detail} when the judge call failed
         "reasoning": result.get("reasoning", ""),
         "agent_answer": row.get("agent_answer", ""),
         "operator_answer": row.get("operator_answer", ""),
