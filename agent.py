@@ -2,17 +2,18 @@
 The support agent under test (Alfa-Bank transaction consultant). Produces a trace per case:
     {case_id, answer, tool_calls[{name,args,result}], chunks[{doc_id,text}]}
 
-Two implementations behind one run_agent() dispatcher:
-- run_llm_agent:     real agent tool-use loop against the endpoint in config.get("agent") —
-                     Anthropic or OpenAI-compatible (e.g. DeepSeek). Production path.
-- run_offline_agent: deterministic baseline that drives the SAME tool layer, so the whole
-                     pipeline runs end-to-end with no API key.
+OO structure — two implementations of one `Agent` interface behind the run_agent() dispatcher:
+- LlmAgent:     real agent tool-use loop against the endpoint in config.get("agent") —
+                Anthropic or OpenAI-compatible (the Sandbox). Production path.
+- OfflineAgent: deterministic baseline that drives the SAME tool layer, so the whole
+                pipeline runs end-to-end with no API key.
 
 Trace mapping (matches the architecture diagram: RAW MCP data + Chunks -> judges):
 - MCPClear (history tool) calls        -> tool_calls[]
 - getInstruction (grounding) results   -> chunks[{doc_id: topic_key, text}]
 
 Endpoint/model/prompt/provider/mode all come from agents.toml [agent] (see config.py).
+Module-level run_agent()/run_llm_agent()/run_offline_agent() are the stable public seam.
 """
 import json
 from datetime import date, timedelta
@@ -96,114 +97,141 @@ def _openai_tools() -> list:
     ]
 
 
-def _run_anthropic_agent(case: dict, spec) -> dict:
-    import anthropic
+class Agent:
+    """One interface: a case in, a trace out."""
 
-    client = anthropic.Anthropic(**config.client_kwargs(spec))
-    uid, cd = case.get("fixture_user", ""), case.get("current_date", DEFAULT_DATE)
-    system = build_system(spec.prompt_text(), cd, uid)
-    messages = [{"role": "user", "content": case["query"]}]
-    tool_calls, chunks, answer = [], [], ""
+    def run(self, case: dict) -> dict:
+        raise NotImplementedError
 
-    for _ in range(MAX_TOOL_ITERS):
-        response = client.messages.create(
-            model=spec.model, max_tokens=4096, thinking={"type": "adaptive"},
-            system=system, tools=TOOLS, messages=messages,
-        )
-        if response.stop_reason != "tool_use":
-            answer = "".join(b.text for b in response.content if b.type == "text").strip()
-            break
-        messages.append({"role": "assistant", "content": response.content})
-        tool_results = []
-        for block in response.content:
-            if block.type != "tool_use":
-                continue
-            result = _execute_tool(block.name, dict(block.input), uid, cd, tool_calls, chunks)
-            tool_results.append({"type": "tool_result", "tool_use_id": block.id,
+
+class LlmAgent(Agent):
+    """Manual tool-use loop against the [agent] endpoint (Anthropic or OpenAI-compatible)."""
+
+    def run(self, case: dict) -> dict:
+        spec = config.get("agent")
+        if spec.provider == "openai":
+            return self._run_openai(case, spec)
+        return self._run_anthropic(case, spec)
+
+    @staticmethod
+    def _context(case: dict) -> tuple[str, str]:
+        return case.get("fixture_user", ""), case.get("current_date", DEFAULT_DATE)
+
+    def _run_anthropic(self, case: dict, spec) -> dict:
+        import anthropic
+
+        client = anthropic.Anthropic(**config.client_kwargs(spec))
+        uid, cd = self._context(case)
+        system = build_system(spec.prompt_text(), cd, uid)
+        messages = [{"role": "user", "content": case["query"]}]
+        tool_calls, chunks, answer = [], [], ""
+
+        for _ in range(MAX_TOOL_ITERS):
+            response = client.messages.create(
+                model=spec.model, max_tokens=4096, thinking={"type": "adaptive"},
+                system=system, tools=TOOLS, messages=messages,
+            )
+            if response.stop_reason != "tool_use":
+                answer = "".join(b.text for b in response.content if b.type == "text").strip()
+                break
+            messages.append({"role": "assistant", "content": response.content})
+            tool_results = []
+            for block in response.content:
+                if block.type != "tool_use":
+                    continue
+                result = _execute_tool(block.name, dict(block.input), uid, cd, tool_calls, chunks)
+                tool_results.append({"type": "tool_result", "tool_use_id": block.id,
+                                     "content": json.dumps(result, ensure_ascii=False)})
+            messages.append({"role": "user", "content": tool_results})
+
+        return {"case_id": case["id"], "answer": answer, "tool_calls": tool_calls, "chunks": chunks}
+
+    def _run_openai(self, case: dict, spec) -> dict:
+        import oai
+
+        uid, cd = self._context(case)
+        system = build_system(spec.prompt_text(), cd, uid)
+        messages = [{"role": "system", "content": system}, {"role": "user", "content": case["query"]}]
+        tools, tool_calls, chunks, answer = _openai_tools(), [], [], ""
+
+        for _ in range(MAX_TOOL_ITERS):
+            msg = oai.chat(spec, messages, tools=tools, temperature=0.0, max_tokens=4096)
+            tcs = msg.get("tool_calls")
+            if not tcs:
+                answer = (msg.get("content") or "").strip()
+                break
+            messages.append({"role": "assistant", "content": msg.get("content") or "", "tool_calls": tcs})
+            for tc in tcs:
+                fn = tc["function"]
+                try:
+                    args = json.loads(fn.get("arguments") or "{}")
+                except json.JSONDecodeError:
+                    args = {}
+                result = _execute_tool(fn["name"], args, uid, cd, tool_calls, chunks)
+                messages.append({"role": "tool", "tool_call_id": tc["id"],
                                  "content": json.dumps(result, ensure_ascii=False)})
-        messages.append({"role": "user", "content": tool_results})
 
-    return {"case_id": case["id"], "answer": answer, "tool_calls": tool_calls, "chunks": chunks}
-
-
-def _run_openai_agent(case: dict, spec) -> dict:
-    import oai
-
-    uid, cd = case.get("fixture_user", ""), case.get("current_date", DEFAULT_DATE)
-    system = build_system(spec.prompt_text(), cd, uid)
-    messages = [{"role": "system", "content": system}, {"role": "user", "content": case["query"]}]
-    tools, tool_calls, chunks, answer = _openai_tools(), [], [], ""
-
-    for _ in range(MAX_TOOL_ITERS):
-        msg = oai.chat(spec, messages, tools=tools, temperature=0.0, max_tokens=4096)
-        tcs = msg.get("tool_calls")
-        if not tcs:
-            answer = (msg.get("content") or "").strip()
-            break
-        messages.append({"role": "assistant", "content": msg.get("content") or "", "tool_calls": tcs})
-        for tc in tcs:
-            fn = tc["function"]
-            try:
-                args = json.loads(fn.get("arguments") or "{}")
-            except json.JSONDecodeError:
-                args = {}
-            result = _execute_tool(fn["name"], args, uid, cd, tool_calls, chunks)
-            messages.append({"role": "tool", "tool_call_id": tc["id"],
-                             "content": json.dumps(result, ensure_ascii=False)})
-
-    return {"case_id": case["id"], "answer": answer, "tool_calls": tool_calls, "chunks": chunks}
+        return {"case_id": case["id"], "answer": answer, "tool_calls": tool_calls, "chunks": chunks}
 
 
-def run_llm_agent(case: dict) -> dict:
-    """Drive the agent through a manual tool-use loop (Anthropic or OpenAI-compatible), per config."""
-    spec = config.get("agent")
-    return _run_openai_agent(case, spec) if spec.provider == "openai" else _run_anthropic_agent(case, spec)
-
-
-def run_offline_agent(case: dict) -> dict:
+class OfflineAgent(Agent):
     """Deterministic baseline: wires the real tools by the case's routing hints.
 
     Trusts `needs_history` / `expected_instruction` rather than classifying intent, but
     exercises the full tool + trace + eval path so the harness is verifiable with no API key.
     """
-    tool_calls: list[dict] = []
-    chunks: list[dict] = []
-    ops: list[dict] = []
 
-    if case.get("needs_history"):
-        cur = date.fromisoformat(case.get("current_date", DEFAULT_DATE))
-        from_date, to_date = (cur - timedelta(days=85)).isoformat(), (cur + timedelta(days=1)).isoformat()
-        result = mcp_clear(case.get("fixture_user", ""), from_date, to_date)
-        tool_calls.append({
-            "name": "MCPClear",
-            "args": {"fromDate": from_date, "toDate": to_date},
-            "result": result,
-        })
-        ops = result["operations"]
+    def run(self, case: dict) -> dict:
+        tool_calls: list[dict] = []
+        chunks: list[dict] = []
+        ops: list[dict] = []
 
-    if case.get("expected_instruction"):
-        instr = get_instruction([case["expected_instruction"]])
-        chunks = [{"doc_id": k, "text": v} for k, v in instr.items()]
+        if case.get("needs_history"):
+            cur = date.fromisoformat(case.get("current_date", DEFAULT_DATE))
+            from_date, to_date = (cur - timedelta(days=85)).isoformat(), (cur + timedelta(days=1)).isoformat()
+            result = mcp_clear(case.get("fixture_user", ""), from_date, to_date)
+            tool_calls.append({
+                "name": "MCPClear",
+                "args": {"fromDate": from_date, "toDate": to_date},
+                "result": result,
+            })
+            ops = result["operations"]
 
-    if ops:
-        planted = case.get("planted_operation_id")
-        op = next((o for o in ops if o["id"] == planted), None) or max(ops, key=lambda o: o["operationDate"])
-        line = f"{op['title']} — {format_rub(op['amount'])} ₽ {op['operationDate']}"
-        extra = f" {chunks[0]['text']}" if chunks else ""
-        answer = f"final_answer: {line}.{extra}"
-    elif chunks:
-        answer = f"final_answer: {chunks[0]['text']}"
-    else:
-        answer = "no_comments: Рад был помочь."
+        if case.get("expected_instruction"):
+            instr = get_instruction([case["expected_instruction"]])
+            chunks = [{"doc_id": k, "text": v} for k, v in instr.items()]
 
-    return {"case_id": case["id"], "answer": answer, "tool_calls": tool_calls, "chunks": chunks}
+        if ops:
+            planted = case.get("planted_operation_id")
+            op = next((o for o in ops if o["id"] == planted), None) or max(ops, key=lambda o: o["operationDate"])
+            line = f"{op['title']} — {format_rub(op['amount'])} ₽ {op['operationDate']}"
+            extra = f" {chunks[0]['text']}" if chunks else ""
+            answer = f"final_answer: {line}.{extra}"
+        elif chunks:
+            answer = f"final_answer: {chunks[0]['text']}"
+        else:
+            answer = "no_comments: Рад был помочь."
+
+        return {"case_id": case["id"], "answer": answer, "tool_calls": tool_calls, "chunks": chunks}
+
+
+_LLM_AGENT = LlmAgent()
+_OFFLINE_AGENT = OfflineAgent()
+
+
+def run_llm_agent(case: dict) -> dict:
+    return _LLM_AGENT.run(case)
+
+
+def run_offline_agent(case: dict) -> dict:
+    return _OFFLINE_AGENT.run(case)
 
 
 def run_agent(case: dict) -> dict:
     """Dispatch to the LLM agent or the offline baseline (see module docstring)."""
     spec = config.get("agent")
     if spec.mode == "offline":
-        return run_offline_agent(case)
+        return _OFFLINE_AGENT.run(case)
     if spec.mode == "llm":
-        return run_llm_agent(case)
-    return run_llm_agent(case) if spec.available() else run_offline_agent(case)
+        return _LLM_AGENT.run(case)
+    return _LLM_AGENT.run(case) if spec.available() else _OFFLINE_AGENT.run(case)

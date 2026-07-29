@@ -25,14 +25,82 @@ import json
 import sys
 import tempfile
 import time
+import zipfile
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import calibrate
 import config
 import dataset
+from errors import ConfigError, DatasetError, LlmOutputError
 from judges.resolution import FAILURE_REASONS
 
 SMOKE_N = 10
+
+_WHERE_LABELS = {"dataset": "DATASET", "config": "CONFIG",
+                 "api": "API / NETWORK", "llm_output": "LLM OUTPUT"}
+_WHERE_ORDER = {"dataset": 0, "config": 1, "api": 2, "llm_output": 3}
+
+
+@dataclass
+class Finding:
+    """One diagnosed problem: where it lives, what happened, what to do, which rows."""
+    where: str
+    problem: str
+    what_to_do: str
+    rows: list = field(default_factory=list)
+
+
+class SchemeDiagnostician:
+    """Turns judged records into categorized findings — WHERE the scheme is broken
+    (dataset / config / api / llm_output) and WHAT TO DO. Structured `error` dicts from
+    the judges (see errors.py) are used directly; format violations mean the model
+    answered but ignored the schema."""
+
+    def diagnose(self, records: list[dict]) -> list[Finding]:
+        findings: dict[tuple, Finding] = {}
+
+        def add(where: str, problem: str, fix: str, rid: str) -> None:
+            key = (where, problem[:120], fix)
+            findings.setdefault(key, Finding(where, problem, fix)).rows.append(rid)
+
+        for r in records:
+            rid = r.get("id", "?")
+            err, reasoning = r.get("error"), r.get("reasoning", "")
+            if err:  # the judge call itself failed — trust its structured diagnosis
+                add(err.get("where", "api"), err.get("detail", "judge call failed"),
+                    err.get("what_to_do", ""), rid)
+                continue
+            if "[stub" in reasoning:
+                add("config", "the judge is the offline stub — no live LLM was exercised",
+                    ConfigError.default_fix, rid)
+                continue
+            verdict, reason = r.get("verdict"), r.get("failure_reason")
+            if verdict not in calibrate.LABELS:
+                add("llm_output", f"invalid verdict {verdict!r}", LlmOutputError.default_fix, rid)
+            elif reason not in FAILURE_REASONS:
+                add("llm_output", f"invalid failure_reason {reason!r}", LlmOutputError.default_fix, rid)
+            elif (verdict == "yes") != (reason == "none"):
+                add("llm_output", f"verdict {verdict} inconsistent with failure_reason {reason!r}",
+                    LlmOutputError.default_fix, rid)
+            elif not reasoning.strip():
+                add("llm_output", "empty reasoning", LlmOutputError.default_fix, rid)
+        return sorted(findings.values(), key=lambda f: (_WHERE_ORDER.get(f.where, 9), -len(f.rows)))
+
+    @staticmethod
+    def print_findings(findings: list[Finding], total: int) -> None:
+        print("diagnosis — where is the problem and what to do:")
+        for f in findings:
+            print(f"  [{_WHERE_LABELS.get(f.where, f.where)}] {len(f.rows)}/{total} dialogues")
+            print(f"    problem:    {f.problem[:200]}")
+            print(f"    what to do: {f.what_to_do}")
+
+
+def _fail(where: str, problem: str, what_to_do: str) -> int:
+    """Print a single pre-flight finding (dataset/config level) and fail."""
+    print("SCHEME FAILED")
+    SchemeDiagnostician.print_findings([Finding(where, problem, what_to_do, ["-"])], 1)
+    return 1
 
 
 def ensure_jsonl(path: str) -> str:
@@ -99,11 +167,28 @@ def eta_text(elapsed: float, n: int, total: int) -> str:
 
 
 def main(dataset_path: str, n: int) -> int:
-    jsonl = ensure_jsonl(dataset_path)
-    rows = load_labeled(jsonl)
+    # ── dataset-level checks first: a broken input never reaches the API ──
+    try:
+        jsonl = ensure_jsonl(dataset_path)
+    except FileNotFoundError:
+        return _fail("dataset", f"file not found: {dataset_path}",
+                     "check the path; pass the assessors' .xlsx or a dataset.py .jsonl")
+    except zipfile.BadZipFile:
+        return _fail("dataset", f"not a valid .xlsx file: {dataset_path}", DatasetError.default_fix)
+    try:
+        rows = load_labeled(jsonl)
+    except FileNotFoundError:
+        return _fail("dataset", f"file not found: {jsonl}",
+                     "check the path; pass the assessors' .xlsx or a dataset.py .jsonl")
+    except json.JSONDecodeError as e:
+        return _fail("dataset", f"malformed jsonl ({e})",
+                     "regenerate it: python3 dataset.py <file.xlsx> <out.jsonl>")
     if not rows:
-        print(f"SCHEME FAILED: no labeled rows in {dataset_path}")
-        return 1
+        return _fail("dataset", f"no labeled rows in {dataset_path}",
+                     "for .xlsx: the labeled sheet was not recognized — headers must include "
+                     "'agent answer' and 'Is agents answer correct?' (Да/Частично/Нет); "
+                     "for .jsonl: human_label must be yes/partial/no")
+
     print(f"judge: {calibrate.judge_banner()}")
     print(f"smoke: {min(n, len(rows))} of {len(rows)} labeled dialogues")
 
@@ -116,9 +201,9 @@ def main(dataset_path: str, n: int) -> int:
     print(f"elapsed: {elapsed:.0f}s for {len(records)} dialogues | "
           f"full run over {len(rows)} rows: {eta_text(elapsed, len(records), len(rows))}")
     if problems:
-        print(f"SCHEME FAILED ({len(problems)} problem(s)):")
-        for p in problems:
-            print(f"  ✗ {p}")
+        print(f"SCHEME FAILED ({len(problems)} problem(s) in {len(records)} dialogues)")
+        findings = SchemeDiagnostician().diagnose(records)
+        SchemeDiagnostician.print_findings(findings, len(records))
         return 1
     print("SCHEME OK — safe to run the full eval (python3 eval_full.py)")
     return 0

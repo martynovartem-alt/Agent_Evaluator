@@ -3,9 +3,11 @@ Groundedness judge: does the answer make claims not supported by the captured tr
 Reads ONLY the trace context (answer + tool_calls + chunks) plus the client query — never
 the operator answer (that is resolution's job) and never live tools.
 Prompt: prompts/groundedness.md. Falls back to a stub when no judge LLM is available.
+
+OO structure: `GroundednessJudge(LlmJudge)`; the module-level `judge_groundedness()` and
+`_payload()` are the stable public seam used by runner.py and the tests.
 """
-import config
-from judges import _llm
+from judges.base import LlmJudge, error_info
 
 _SCHEMA = {
     "type": "object",
@@ -36,16 +38,32 @@ def _result(has_claim: bool, claims: list, reasoning: str) -> dict:
     }
 
 
-async def judge_groundedness(case: dict, trace: dict) -> dict:
-    spec = config.get("groundedness")
-    if not spec.available():
-        return _result(False, [], "[stub — no judge LLM]")
-    try:
-        out = await _llm.judge_json(spec, spec.prompt_text(), _payload(case, trace), _SCHEMA)
+class GroundednessJudge(LlmJudge):
+    role = "groundedness"
+    schema = _SCHEMA
+
+    def payload(self, case: dict, trace: dict) -> dict:
+        return _payload(case, trace)
+
+    def shape(self, out: dict) -> dict:
         return _result(
             bool(out["has_unsupported_critical_claim"]),
             out.get("unsupported_claims", []),
             out.get("reasoning", ""),
         )
-    except Exception as e:  # don't let one row kill a batch; surface the error, don't penalize
-        return _result(False, [], f"[judge error: {e}]")
+
+    def stub(self) -> dict:
+        return _result(False, [], "[stub — no judge LLM]")
+
+    def on_error(self, e: Exception) -> dict:
+        # don't penalize the case for an infrastructure failure
+        result = _result(False, [], f"[judge error: {e}]")
+        result["error"] = error_info(e)
+        return result
+
+
+JUDGE = GroundednessJudge()
+
+
+async def judge_groundedness(case: dict, trace: dict) -> dict:
+    return await JUDGE.judge(case, trace)

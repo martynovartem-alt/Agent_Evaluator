@@ -66,6 +66,9 @@ agent answer was graded `Да / Частично / Нет`.
               │   10 dialogues → scheme validation: verdicts and   │
               │   failure reasons in-enum + consistent, no judge   │
               │   errors, live LLM (stub = fail), full-run ETA     │
+              │   on failure → DIAGNOSIS (SchemeDiagnostician):    │
+              │     WHERE: dataset | config | api | llm_output     │
+              │     + WHAT TO DO (Sandbox error-table remediations)│
               └─────────────────────────┬──────────────────────────┘
                                         ▼ (only if scheme OK)
               ┌────────────────────────────────────────────────────┐
@@ -132,6 +135,25 @@ contract fields `system_id` and `rps`. Default deployment — the bank's **Alfa 
 `mode=auto` uses the LLM when the role is *usable* (a key, or for `provider=openai` any
 `base_url`) — so off-network force `*_MODE=offline` for the deterministic keyless path
 (offline agent + stub judges), which keeps the whole pipeline runnable with no key.
+
+## 5. Object model
+
+OOP where state or polymorphism exists; pure transforms stay functions by design.
+
+| Class (module) | Responsibility |
+|---|---|
+| `EvalError` → `DatasetError` / `ConfigError` / `ApiError` / `NetworkError` / `LlmOutputError` (`errors.py`) | typed errors; each carries `where` + `what_to_do` (`ApiError.from_http` encodes the Sandbox error table: 406→systemid, 429→rps, 401→key, …) |
+| `RateLimiter`, `OaiClient` (`oai.py`) | reserved send slots per endpoint (0.2 RPS, thread-safe); the Sandbox HTTP client (headers, throttle, typed errors) |
+| `LlmJudge` (`judges/base.py`) | template method for all LLM roles: spec lookup → availability → call → shape / stub / on_error; failures carry `error={where, what_to_do, detail}` |
+| `GroundednessJudge`, `ResolutionJudge`, `ScopeClassifier` (`judges/*.py`) | subclasses: payload/shape/stub/error semantics; `ResolutionJudge` overrides `judge()` for panel voting |
+| `Agent` → `LlmAgent` / `OfflineAgent` (`agent.py`) | one interface (case → trace), two implementations behind `run_agent()` dispatch |
+| `AgentSpec` (`config.py`) | frozen per-role config value object |
+| `SchemeDiagnostician`, `Finding` (`eval_fast.py`) | categorize preflight failures into where/what-to-do findings |
+
+Deliberately functional: `checks.py` (pure predicates), `aggregate.py`/`dataset.py` (pure
+transforms), `runner.py`/`calibrate.py`/`eval_*.py` mains (orchestration). Module-level
+functions (`run_agent`, `judge_resolution`, `oai.chat`, …) remain the stable public seam —
+they delegate to singleton class instances.
 
 ## PNG label → implementation
 

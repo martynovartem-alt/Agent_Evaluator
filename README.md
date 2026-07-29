@@ -67,7 +67,10 @@ takes hours — so the flow is **preflight first, then full**:
 
 ```bash
 # ~1 min: judge 10 dialogues, validate the scheme (verdicts, failure reasons,
-# no judge errors, live LLM — not the stub), print the full-run ETA; exit 0/1
+# no judge errors, live LLM — not the stub), print the full-run ETA; exit 0/1.
+# On failure it prints a DIAGNOSIS: where the problem is — DATASET (file/format),
+# CONFIG (key/mode), API/NETWORK (VPN, 406/429/…), or LLM OUTPUT (schema ignored) —
+# and what to do about it (remediations from the Sandbox error table).
 python3 eval_fast.py --dataset "Agents-new-answers(after_20_07_2026).xlsx"
 
 # preflight + every labeled row: agreement, kappa, per-class precision/recall,
@@ -98,7 +101,8 @@ the operation), ≈ 28% `wrong_operation`.
 | `calibrate.py` | judge vs human labels: kappa, P/R, binary, failure reasons |
 | `eval_fast.py` / `eval_full.py` | scheme preflight (10 dialogues, exit 0/1) / preflight + full eval |
 | `dataset.py` / `gen_mcp.py` | xlsx → jsonl ingestion / synthetic MCP data generator |
-| `agents.toml` / `config.py` / `oai.py` | per-role LLM config / spec resolution / Sandbox-aware HTTP client |
+| `agents.toml` / `config.py` / `oai.py` | per-role LLM config / spec resolution / Sandbox-aware HTTP client (`OaiClient` + `RateLimiter`) |
+| `errors.py` | typed error hierarchy — every error knows *where* it lives and *what to do* |
 | `prompts/` | judge prompts incl. the panel personas (`resolution*.md`, `groundedness.md`) |
 | `agent_prompt_v2.md` | production agent prompt, used verbatim by `[agent]` (repo root) |
 | `data/` · `fixtures/` | golden sets, generated MCP data · hand-authored operations/instructions |

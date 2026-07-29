@@ -9,11 +9,16 @@ Panel voting ("trial"): with [[resolution.panel]] entries in agents.toml, the pa
 concurrently and the majority wins; a full yes/partial/no split lands on "partial" (ordinal
 median). Per-vote details are kept in the result's `votes[]`. RESOLUTION_PANEL=off → single
 judge, for A/B against the panel in calibrate.py.
+
+OO structure: `ResolutionJudge(LlmJudge)` overrides judge() for the panel path; module-level
+`judge_resolution()`, `_payload()`, `_shape()`, `majority_verdict()` are the stable public
+seam used by runner.py, calibrate.py and the tests.
 """
 import asyncio
 
 import config
 from judges import _llm
+from judges.base import LlmJudge, error_info
 
 # Why the answer is not correct — assessable from query/answer/operator_answer alone
 # (tool misuse is not visible here; in the pipeline it's checks.py tools_ok, and
@@ -65,45 +70,79 @@ def majority_verdict(verdicts: list[str]) -> str:
     return ranked[(len(ranked) - 1) // 2]
 
 
-async def _vote(spec: config.AgentSpec, case: dict, trace: dict) -> dict:
-    """One panelist's vote. An error becomes a "no" vote (same semantics as the single
-    judge) — with a panel, one transient failure no longer decides the case alone."""
-    try:
-        out = await _llm.judge_json(spec, spec.prompt_text(), _payload(case, trace), _SCHEMA)
+class ResolutionJudge(LlmJudge):
+    role = "resolution"
+    schema = _SCHEMA
+
+    def payload(self, case: dict, trace: dict) -> dict:
+        return _payload(case, trace)
+
+    def shape(self, out: dict) -> dict:
         verdict = out["verdict"] if out.get("verdict") in ("yes", "partial", "no") else "no"
-        reasoning = out.get("reasoning", "")
-        reason = _norm_reason(verdict, out.get("failure_reason", ""))
-    except Exception as e:
-        verdict, reasoning, reason = "no", f"[judge error: {e}]", "other"
-    return {"judge": spec.name, "model": spec.model, "verdict": verdict,
-            "failure_reason": reason, "reasoning": reasoning}
+        return _shape(verdict, out.get("reasoning", ""),
+                      _norm_reason(verdict, out.get("failure_reason", "")))
+
+    def stub(self) -> dict:
+        return _shape("yes", "[stub — no judge LLM]")
+
+    def on_error(self, e: Exception) -> dict:
+        result = _shape("no", f"[judge error: {e}]", "other")
+        result["error"] = error_info(e)
+        return result
+
+    async def _vote(self, spec: config.AgentSpec, case: dict, trace: dict) -> dict:
+        """One panelist's vote. An error becomes a "no" vote (same semantics as the single
+        judge) — with a panel, one transient failure no longer decides the case alone."""
+        try:
+            out = await _llm.judge_json(spec, spec.prompt_text(), self.payload(case, trace),
+                                        self.schema)
+            verdict = out["verdict"] if out.get("verdict") in ("yes", "partial", "no") else "no"
+            reasoning = out.get("reasoning", "")
+            reason, err = _norm_reason(verdict, out.get("failure_reason", "")), None
+        except Exception as e:
+            verdict, reasoning, reason, err = "no", f"[judge error: {e}]", "other", error_info(e)
+        vote = {"judge": spec.name, "model": spec.model, "verdict": verdict,
+                "failure_reason": reason, "reasoning": reasoning}
+        if err:
+            vote["error"] = err
+        return vote
+
+    @staticmethod
+    def _panel_reason(verdict: str, votes: list[dict]) -> str:
+        """Failure reason for the panel verdict: the most common reason among the panelists
+        that voted not-correct (ties broken by FAILURE_REASONS order, deterministic)."""
+        if verdict == "yes":
+            return "none"
+        reasons = [v["failure_reason"] for v in votes if v["verdict"] != "yes"]
+        if not reasons:
+            return "other"
+        return min(set(reasons), key=lambda r: (-reasons.count(r), FAILURE_REASONS.index(r)))
+
+    async def judge(self, case: dict, trace: dict) -> dict:
+        spec = self.spec()
+        if not spec.available():
+            return self.stub()
+        # A panelist that can never run (e.g. entry overriding mode/endpoint) is skipped
+        # rather than voting a permanent "no"; the error→"no" in _vote is for transient failures.
+        panel = [s for s in config.panel(self.role) if s.available()]
+        if not panel:
+            return await super().judge(case, trace)
+        votes = list(await asyncio.gather(*(self._vote(s, case, trace) for s in panel)))
+        verdict = majority_verdict([v["verdict"] for v in votes])
+        tally = " ".join(f"{v['judge']}→{v['verdict']}" for v in votes)
+        reasoning = f"panel: {tally} ⇒ {verdict}. " + " ".join(
+            f"[{v['judge']}] {v['reasoning']}" for v in votes
+        )
+        result = _shape(verdict, reasoning, self._panel_reason(verdict, votes))
+        result["votes"] = votes
+        vote_errors = [v["error"] for v in votes if v.get("error")]
+        if vote_errors and verdict != "yes":
+            result["error"] = vote_errors[0]
+        return result
 
 
-def _panel_reason(verdict: str, votes: list[dict]) -> str:
-    """Failure reason for the panel verdict: the most common reason among the panelists
-    that voted not-correct (ties broken by FAILURE_REASONS order, deterministic)."""
-    if verdict == "yes":
-        return "none"
-    reasons = [v["failure_reason"] for v in votes if v["verdict"] != "yes"]
-    return min(set(reasons), key=lambda r: (-reasons.count(r), FAILURE_REASONS.index(r))) if reasons else "other"
+JUDGE = ResolutionJudge()
 
 
 async def judge_resolution(case: dict, trace: dict) -> dict:
-    spec = config.get("resolution")
-    if not spec.available():
-        return _shape("yes", "[stub — no judge LLM]")
-    # A panelist that can never run (e.g. entry overriding mode/endpoint) is skipped rather
-    # than voting a permanent "no"; the error→"no" path in _vote is for transient failures.
-    panel = [s for s in config.panel("resolution") if s.available()]
-    if not panel:
-        vote = await _vote(spec, case, trace)
-        return _shape(vote["verdict"], vote["reasoning"], vote["failure_reason"])
-    votes = list(await asyncio.gather(*(_vote(s, case, trace) for s in panel)))
-    verdict = majority_verdict([v["verdict"] for v in votes])
-    tally = " ".join(f"{v['judge']}→{v['verdict']}" for v in votes)
-    reasoning = f"panel: {tally} ⇒ {verdict}. " + " ".join(
-        f"[{v['judge']}] {v['reasoning']}" for v in votes
-    )
-    result = _shape(verdict, reasoning, _panel_reason(verdict, votes))
-    result["votes"] = votes
-    return result
+    return await JUDGE.judge(case, trace)

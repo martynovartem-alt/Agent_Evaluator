@@ -120,8 +120,18 @@ key in `instructions.json`. Real MCP format reference: `json_answer_history_oper
 
 ## Judges (judges/)
 
-`judge_groundedness` and `judge_resolution` call Claude via `judges/_llm.py` (AsyncAnthropic,
-structured outputs `output_config.format` json_schema, determinism via `output_config.effort`).
+OO structure: `judges/base.py` `LlmJudge` — template method (spec → availability → LLM call →
+`shape`/`stub`/`on_error`) shared by `GroundednessJudge`, `ResolutionJudge` (overrides `judge()`
+for panel voting), `ScopeClassifier`. Failure results carry `error = {where, what_to_do, detail}`
+(typed hierarchy in `errors.py`: Dataset/Config/Api/Network/LlmOutput; `ApiError.from_http`
+encodes the Sandbox error table). Module-level `judge_groundedness`/`judge_resolution`/
+`classify_scope` are the stable seam — thin wrappers over singleton instances; tests patch
+the shared `config`/`_llm` module attributes, which the base class sees. `eval_fast.py`'s
+`SchemeDiagnostician` turns these structured errors into a where/what-to-do diagnosis.
+
+`judge_groundedness` and `judge_resolution` call the LLM via `judges/_llm.py` (AsyncAnthropic,
+structured outputs `output_config.format` json_schema, determinism via `output_config.effort`;
+or the OpenAI-compatible path through `oai.py` — `OaiClient` + `RateLimiter` classes).
 Prompts: `prompts/groundedness.md`, `prompts/resolution.md`.
 - Groundedness reads trace only (`query`, `answer`, `tool_calls`, `chunks`) — never `operator_answer`.
 - Resolution reads `query`, `answer`, `operator_answer`; **3-way** `verdict` ∈ yes/partial/no

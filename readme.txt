@@ -61,6 +61,8 @@ AGENT EVALUATOR — ПОШАГОВАЯ ИНСТРУКЦИЯ (RU)          [Engli
    только QwQ-32B, /models/llama-3.3 и gpt-oss-120b.
 
 ЕСЛИ ЧТО-ТО НЕ ТАК
+   eval_fast.py сам печатает диагноз: ГДЕ проблема (DATASET / CONFIG /
+   API-СЕТЬ / LLM OUTPUT) и ЧТО ДЕЛАТЬ. Шпаргалка:
    - Ошибка 406 ............ не передан systemid (проверьте agents.toml)
    - Ошибка 400 messageId .. повторный messageid (не должно случаться —
                              клиент генерирует уникальный сам)
@@ -140,6 +142,8 @@ CHANGING THE MODEL
    QwQ-32B, /models/llama-3.3 and gpt-oss-120b.
 
 TROUBLESHOOTING
+   eval_fast.py prints the diagnosis itself: WHERE the problem is
+   (DATASET / CONFIG / API-NETWORK / LLM OUTPUT) and WHAT TO DO. Cheat sheet:
    - Error 406 ............. systemid header missing (check agents.toml)
    - Error 400 messageId ... repeated messageid (should not happen —
                              the client generates a unique one)

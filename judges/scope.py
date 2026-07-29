@@ -19,8 +19,7 @@ import json
 import re
 from pathlib import Path
 
-import config
-from judges import _llm
+from judges.base import LlmJudge, error_info
 
 CACHE_PATH = Path(__file__).parent.parent / "data" / "scope_cache.json"
 
@@ -79,15 +78,29 @@ def save_cache(cache: dict) -> None:
     CACHE_PATH.write_text(json.dumps(cache, ensure_ascii=False, indent=1))
 
 
-async def classify_scope(dialogue: str) -> dict:
-    """LLM scope call → {"scope", "topic", "reasoning"}. Unknown (not a guess) when the
-    role is unavailable or errors — segmentation must not invent labels."""
-    spec = config.get("scope")
-    if not spec.available():
-        return {"scope": "unknown", "topic": "", "reasoning": "[stub — no scope LLM]"}
-    try:
-        out = await _llm.judge_json(spec, spec.prompt_text(), {"dialogue": dialogue}, _SCHEMA)
+class ScopeClassifier(LlmJudge):
+    """LLM scope classification for dialogues without a backend intent. Returns "unknown"
+    (not a guess) when unavailable or on error — segmentation must not invent labels."""
+    role = "scope"
+    schema = _SCHEMA
+
+    def payload(self, case: dict, trace: dict) -> dict:
+        return {"dialogue": case.get("dialogue", "")}
+
+    def shape(self, out: dict) -> dict:
         return {"scope": "in_scope" if out["in_scope"] else "out_of_scope",
                 "topic": out.get("topic", ""), "reasoning": out.get("reasoning", "")}
-    except Exception as e:
-        return {"scope": "unknown", "topic": "", "reasoning": f"[scope error: {e}]"}
+
+    def stub(self) -> dict:
+        return {"scope": "unknown", "topic": "", "reasoning": "[stub — no scope LLM]"}
+
+    def on_error(self, e: Exception) -> dict:
+        return {"scope": "unknown", "topic": "", "reasoning": f"[scope error: {e}]",
+                "error": error_info(e)}
+
+
+CLASSIFIER = ScopeClassifier()
+
+
+async def classify_scope(dialogue: str) -> dict:
+    return await CLASSIFIER.judge({"dialogue": dialogue}, {})

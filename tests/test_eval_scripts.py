@@ -62,6 +62,41 @@ class TestEta(unittest.TestCase):
         self.assertEqual(eval_fast.eta_text(0.0, 0, 100), "~1 min")
 
 
+class TestDiagnostician(unittest.TestCase):
+    def test_categorizes_by_where_with_remediation(self):
+        records = [
+            # API failure with structured error info from the judge
+            {"id": "r1", "verdict": "no", "failure_reason": "other",
+             "reasoning": "[judge error: cannot reach ...]",
+             "error": {"where": "api", "what_to_do": "connect to the bank VPN/VDI", "detail": "m cannot reach url"}},
+            {"id": "r2", "verdict": "no", "failure_reason": "other",
+             "reasoning": "[judge error: cannot reach ...]",
+             "error": {"where": "api", "what_to_do": "connect to the bank VPN/VDI", "detail": "m cannot reach url"}},
+            # stub — a config problem
+            {"id": "r3", "verdict": "yes", "failure_reason": "none", "reasoning": "[stub — no judge LLM]"},
+            # model answered but broke the schema — llm_output
+            {"id": "r4", "verdict": "maybe", "failure_reason": "none", "reasoning": "ok"},
+        ]
+        findings = eval_fast.SchemeDiagnostician().diagnose(records)
+        wheres = [f.where for f in findings]
+        self.assertEqual(wheres, ["config", "api", "llm_output"])  # ordered by category
+        api = next(f for f in findings if f.where == "api")
+        self.assertEqual(api.rows, ["r1", "r2"])                   # grouped, not repeated
+        self.assertIn("VPN", api.what_to_do)
+        self.assertIn("invalid verdict", next(f for f in findings if f.where == "llm_output").problem)
+
+    def test_clean_records_produce_no_findings(self):
+        records = [{"id": "r1", "verdict": "yes", "failure_reason": "none", "reasoning": "fine"}]
+        self.assertEqual(eval_fast.SchemeDiagnostician().diagnose(records), [])
+
+    def test_dataset_failures_diagnosed_before_api(self):
+        self.assertEqual(eval_fast.main("no/such/file.jsonl", 2), 1)      # missing file → exit 1
+        with tempfile.TemporaryDirectory() as d:
+            bad = Path(d) / "bad.jsonl"
+            bad.write_text("{not json\n")
+            self.assertEqual(eval_fast.main(str(bad), 2), 1)              # malformed → exit 1
+
+
 class TestRunSmoke(unittest.TestCase):
     def test_records_flow_through_score_row(self):
         async def fake_judge(case, trace):
