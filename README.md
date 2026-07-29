@@ -37,11 +37,13 @@ golden case ──▶ Agent (LLM + tools) ──▶ trace {answer, tool_calls, c
 - The headline metric is **binary**: an answer is *correct* only when the verdict is a
   strict `yes` — «Частично» counts as *incorrect*, matching the solved policy.
 
-All LLM roles (`[agent]`, `[groundedness]`, `[resolution]`) are configured independently in
-`agents.toml` and run on the bank's **Alfa Sandbox API** (AlfaGen) by default — the client
-(`oai.py`) implements the Sandbox contract: `systemid` header, a unique `messageid` per
-request, and a shared **0.2 RPS** throttle. Any role can be pointed at another
-OpenAI-compatible or Anthropic endpoint by editing its section.
+All LLM roles (`[agent]`, `[groundedness]`, `[resolution]`, `[scope]`) are configured
+independently in `agents.toml` and run on the bank's **Alfa Sandbox API** (AlfaGen) — the
+client (`oai.py`) implements the Sandbox contract: `systemid` header, a unique `messageid`
+per request, and a shared **0.2 RPS** throttle. Deployment constraints: **bank VPN/VDI
+only**, and **only the models from the Sandbox list** (`Alfa_LLM_endpoints.png` /
+`"4. Sandbox API.pdf"`); tools-capable models for `[agent]`: QwQ-32B, llama-3.3,
+gpt-oss-120b. Step-by-step setup: **`readme.txt`** (RU + EN).
 
 ## Quickstart
 
