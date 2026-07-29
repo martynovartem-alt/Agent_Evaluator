@@ -32,6 +32,7 @@ from pathlib import Path
 import calibrate
 import config
 import dataset
+import progress
 from errors import ConfigError, DatasetError, LlmOutputError
 from judges.resolution import FAILURE_REASONS
 
@@ -140,13 +141,22 @@ def validate(records: list[dict]) -> list[str]:
 async def run_smoke(rows: list[dict], n: int) -> tuple[list[dict], float]:
     """Judge the first n rows (concurrency-bounded like calibrate); return (records, seconds)."""
     sem = asyncio.Semaphore(config.JUDGE_CONCURRENCY)
+    todo = rows[:n]
+    bar = progress.ProgressBar(len(todo), label="smoke")
 
     async def scored(row):
         async with sem:
-            return await calibrate.score_row(row)
+            rec = await calibrate.score_row(row)
+        bar.advance(note=rec.get("id", ""))
+        return rec
 
     start = time.monotonic()
-    records = list(await asyncio.gather(*(scored(r) for r in rows[:n])))
+    ticker = asyncio.ensure_future(bar.tick())
+    try:
+        records = list(await asyncio.gather(*(scored(r) for r in todo)))
+    finally:
+        ticker.cancel()
+        bar.close()
     return records, time.monotonic() - start
 
 

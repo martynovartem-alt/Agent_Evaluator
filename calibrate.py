@@ -19,6 +19,7 @@ from datetime import datetime
 from pathlib import Path
 
 import config
+import progress
 from judges import scope as scope_mod
 from judges.resolution import FAILURE_REASONS, judge_resolution
 
@@ -179,6 +180,7 @@ async def assign_scopes(rows: list[dict], classify: bool = False) -> None:
     cache = scope_mod.load_cache() if classify else {}
     changed = False
     sem = asyncio.Semaphore(config.JUDGE_CONCURRENCY)
+    bar = progress.ProgressBar(len(rows) if classify else 0, label="scope")
 
     async def one(row):
         nonlocal changed
@@ -197,8 +199,12 @@ async def assign_scopes(rows: list[dict], classify: bool = False) -> None:
                     cache[key] = {"scope": scope, "topic": out.get("topic", "")}
                     changed = True
         row["scope"] = scope or "unknown"
+        bar.advance(note=row.get("id", ""))
 
-    await asyncio.gather(*(one(r) for r in rows))
+    try:
+        await asyncio.gather(*(one(r) for r in rows))
+    finally:
+        bar.close()
     if changed:
         scope_mod.save_cache(cache)
 
@@ -294,13 +300,23 @@ async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = 
 
     sem = asyncio.Semaphore(config.JUDGE_CONCURRENCY)
 
-    async def scored(row):
-        async with sem:
-            return await score_row(row, binary)
-
     reports, last_records = [], None
     for i in range(repeat):
-        records = list(await asyncio.gather(*(scored(r) for r in rows)))
+        label = f"scoring {i + 1}/{repeat}" if repeat > 1 else "scoring"
+        bar = progress.ProgressBar(len(rows), label=label)
+
+        async def scored(row, bar=bar):
+            async with sem:
+                rec = await score_row(row, binary)
+            bar.advance(note=rec.get("id", ""))
+            return rec
+
+        ticker = asyncio.ensure_future(bar.tick())
+        try:
+            records = list(await asyncio.gather(*(scored(r) for r in rows)))
+        finally:
+            ticker.cancel()
+            bar.close()
         report = summarize([(r["human_label"], r["verdict"]) for r in records], labels, order)
         reports.append(report)
         last_records = records

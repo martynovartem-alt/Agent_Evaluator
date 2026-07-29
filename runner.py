@@ -14,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 
 import config
+import progress
 from agent import run_agent
 from aggregate import aggregate_results, format_report
 from checks import run_checks
@@ -46,7 +47,8 @@ async def evaluate_case(case: dict, trace: dict) -> dict:
     }
 
 
-async def _process_case(case: dict, traces_dir: Path, sem: asyncio.Semaphore) -> dict:
+async def _process_case(case: dict, traces_dir: Path, sem: asyncio.Semaphore,
+                        bar: progress.ProgressBar | None = None) -> dict:
     """Run the agent, persist its trace, then evaluate it — one case, bounded by `sem`.
     The agent call is blocking, so it runs in a worker thread to free the event loop."""
     async with sem:
@@ -54,7 +56,10 @@ async def _process_case(case: dict, traces_dir: Path, sem: asyncio.Semaphore) ->
         (traces_dir / f"{case['id']}.json").write_text(
             json.dumps(trace, ensure_ascii=False, indent=2)
         )
-        return await evaluate_case(case, trace)
+        result = await evaluate_case(case, trace)
+    if bar:
+        bar.advance(note=case["id"])
+    return result
 
 
 async def main(dataset_path: str, case_id: str | None = None, limit: int | None = None) -> None:
@@ -72,9 +77,15 @@ async def main(dataset_path: str, case_id: str | None = None, limit: int | None 
     traces_dir.mkdir(parents=True)
 
     sem = asyncio.Semaphore(config.JUDGE_CONCURRENCY)
-    results = list(await asyncio.gather(
-        *(_process_case(case, traces_dir, sem) for case in cases)
-    ))
+    bar = progress.ProgressBar(len(cases), label="cases")
+    ticker = asyncio.ensure_future(bar.tick())
+    try:
+        results = list(await asyncio.gather(
+            *(_process_case(case, traces_dir, sem, bar) for case in cases)
+        ))
+    finally:
+        ticker.cancel()
+        bar.close()
 
     report = aggregate_results(results, run_dir)
     (run_dir / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2))
