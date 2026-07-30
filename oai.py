@@ -16,10 +16,9 @@ sites (agent.py, judges/_llm.py) and tests keep working unchanged.
 Env: OAI_TIMEOUT — request timeout in seconds (default 180); the throttle sleeps before
 sending, so the timeout only covers the HTTP call itself.
 
-TLS: per-role `insecure` (skip verification — curl -k, for the Sandbox's self-signed cert)
-and `ca_bundle` (verify against the bank CA PEM) flow in on the spec; see _ssl_context().
+TLS: `insecure = true` on a role skips certificate verification (curl -k — the Sandbox
+cert is self-signed). The proper fix needs no code: put the bank CA in SSL_CERT_FILE.
 """
-import functools
 import json
 import os
 import ssl
@@ -33,20 +32,7 @@ import errors
 
 DEFAULT_BASE_URL = "https://api.openai.com/v1"
 
-
-@functools.lru_cache(maxsize=None)
-def _ssl_context(insecure: bool, ca_bundle: str) -> ssl.SSLContext | None:
-    """TLS settings for a spec: None → default verification; insecure → skip it entirely
-    (curl -k; wins over ca_bundle); ca_bundle → verify against that CA PEM instead.
-    Cached — SSLContext is shareable across connections and threads."""
-    if insecure:
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False          # must precede verify_mode = CERT_NONE
-        ctx.verify_mode = ssl.CERT_NONE
-        return ctx
-    if ca_bundle:
-        return ssl.create_default_context(cafile=ca_bundle)
-    return None
+_INSECURE_CTX = ssl._create_unverified_context()   # curl -k (PEP 476 escape hatch)
 
 
 class RateLimiter:
@@ -103,16 +89,14 @@ class OaiClient:
         req = urllib.request.Request(url, data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
                                      headers=self._headers(spec))
         try:
-            ctx = _ssl_context(getattr(spec, "insecure", False), getattr(spec, "ca_bundle", ""))
+            ctx = _INSECURE_CTX if getattr(spec, "insecure", False) else None
             with urllib.request.urlopen(req, timeout=self.timeout, context=ctx) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
-        except FileNotFoundError as e:      # ca_bundle points at a missing PEM
-            raise errors.ConfigError(f"ca_bundle not found: {getattr(spec, 'ca_bundle', '')}",
-                                     "fix the ca_bundle path in agents.toml (or use insecure = true)") from e
         except urllib.error.HTTPError as e:
             raise errors.ApiError.from_http(e.code, e.read().decode("utf-8"), spec.model) from e
-        except urllib.error.URLError as e:  # no VPN, or a cert failure — remediation differs
-            raise errors.NetworkError.from_url_error(e.reason, spec.model, url) from e
+        except urllib.error.URLError as e:  # no VPN — or a cert failure, which needs its own fix
+            fix = errors.NetworkError.cert_fix if "CERTIFICATE_VERIFY_FAILED" in str(e.reason) else None
+            raise errors.NetworkError(f"{spec.model} cannot reach {url}: {e.reason}", fix) from e
         try:
             return data["choices"][0]["message"]
         except (KeyError, IndexError, TypeError) as e:

@@ -1,6 +1,5 @@
 """Typed error hierarchy: where/what_to_do carried through to diagnoses."""
 import json
-import ssl
 import unittest
 
 import errors
@@ -30,29 +29,6 @@ class TestApiRemediations(unittest.TestCase):
         e = errors.ApiError.from_http(418, "teapot", "m")
         self.assertEqual(e.status, 418)
         self.assertEqual(e.what_to_do, errors.ApiError.default_fix)  # unknown code → generic
-
-
-class TestNetworkRemediations(unittest.TestCase):
-    def test_cert_failure_points_at_tls_knobs(self):
-        # cert errors happen ON the VPN — the VPN hint would mislead; point at insecure/ca_bundle
-        reason = ssl.SSLCertVerificationError(
-            "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate")
-        e = errors.NetworkError.from_url_error(reason, "m", "https://sandbox.test/v1")
-        self.assertEqual(e.where, "api")
-        self.assertIn("cannot reach", str(e))
-        self.assertIn("insecure = true", e.what_to_do)
-        self.assertIn("ca_bundle", e.what_to_do)
-
-    def test_cert_failure_detected_from_reason_text(self):
-        # some urllib paths stringify the SSL error into reason — detect by marker too
-        e = errors.NetworkError.from_url_error(
-            "[SSL: CERTIFICATE_VERIFY_FAILED] self-signed certificate", "m", "u")
-        self.assertIn("insecure = true", e.what_to_do)
-
-    def test_non_cert_failure_keeps_vpn_hint(self):
-        e = errors.NetworkError.from_url_error(OSError("no route to host"), "m", "u")
-        self.assertEqual(e.what_to_do, errors.NetworkError.default_fix)
-        self.assertIn("VPN", e.what_to_do)
 
 
 class TestErrorInfo(unittest.TestCase):

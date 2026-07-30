@@ -72,47 +72,23 @@ class TestAgentSpecs(unittest.TestCase):
 
 
 class TestTlsKnobs(unittest.TestCase):
-    """insecure (curl -k) / ca_bundle: toml keys, env overrides, panel inheritance."""
+    """insecure = true (curl -k): dataclass default, toml key, panel inheritance."""
 
-    def test_defaults_are_secure(self):
-        # a spec built without TLS keys verifies certificates (the shipped Sandbox toml
+    def test_default_is_secure(self):
+        # a spec built without the key verifies certificates (the shipped Sandbox toml
         # opts in explicitly with insecure = true — assert the dataclass, not config.get)
         s = config.AgentSpec(role="x", provider="openai", mode="llm", base_url="u",
                              api_key="k", model="m", effort="medium", prompt="p")
         self.assertFalse(s.insecure)
-        self.assertEqual(s.ca_bundle, "")
 
-    def test_insecure_from_toml_and_env_force_off(self):
+    def test_insecure_from_toml_and_panel_inheritance(self):
         saved = config._RAW.get("resolution", {}).get("insecure")
         config._RAW.setdefault("resolution", {})["insecure"] = True
         try:
             self.assertTrue(config.get("resolution").insecure)
-            os.environ["RESOLUTION_INSECURE"] = "0"      # env can force verification back on
-            self.assertFalse(config.get("resolution").insecure)
-        finally:
-            os.environ.pop("RESOLUTION_INSECURE", None)
-            if saved is None:
-                config._RAW["resolution"].pop("insecure", None)
-            else:
-                config._RAW["resolution"]["insecure"] = saved
-
-    def test_ca_bundle_env_override_and_root_resolution(self):
-        os.environ["RESOLUTION_CA_BUNDLE"] = "certs/alfa_ca.pem"
-        try:
-            spec = config.get("resolution")
-            self.assertEqual(spec.ca_bundle, str(config.ROOT / "certs/alfa_ca.pem"))
-            os.environ["RESOLUTION_CA_BUNDLE"] = "/abs/alfa_ca.pem"
-            self.assertEqual(config.get("resolution").ca_bundle, "/abs/alfa_ca.pem")
-        finally:
-            del os.environ["RESOLUTION_CA_BUNDLE"]
-
-    def test_panel_inherits_tls(self):
-        saved = config._RAW.get("resolution", {}).get("insecure")
-        config._RAW.setdefault("resolution", {})["insecure"] = True
-        try:
             panel = config.panel("resolution")
             self.assertTrue(panel)
-            self.assertTrue(all(p.insecure for p in panel))
+            self.assertTrue(all(p.insecure for p in panel))   # entries inherit the base
         finally:
             if saved is None:
                 config._RAW["resolution"].pop("insecure", None)

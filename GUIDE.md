@@ -132,8 +132,7 @@ provider = "openai"                        # "anthropic" | "openai" (OpenAI-comp
 base_url = "https://agenapisandbox.moscow.alfaintra.net/internal/llm/v1"
 system_id = "sanduser"                     # Sandbox `systemid` header (406 without it)
 rps      = 0.2                             # Sandbox hard limit — one request per 5 s, shared
-insecure = true                            # Sandbox cert is self-signed — skip TLS verification
-                                           # (curl -k); or ca_bundle = "path/to/alfa_ca.pem"
+insecure = true                            # Sandbox cert is self-signed — skip TLS verification (curl -k)
 model    = "gpt-oss-120b"                  # the agent calls tools; Sandbox documents tools
                                            # only for QwQ-32B / llama-3.3 / gpt-oss-120b
 prompt   = "agent_prompt_v2.md"            # its system prompt (swap the file to change it)
@@ -295,7 +294,7 @@ Deterministic; no API key needed.
 | `RuntimeError: … requires MCP_COMMAND` / `MCP_SERVER_URL` | Live MCP without connection details | Set `command` (stdio) or `server_url` (http) in `agents.toml [mcp]` |
 | Connection / 401 / 404 from the API | Wrong `base_url`, provider↔endpoint mismatch, or key↔endpoint mismatch | Match `provider` to the endpoint (`openai` for OpenAI-compatible, `anthropic` for Anthropic); for Anthropic leave `base_url = ""`; ensure the key matches the endpoint |
 | `URLError` / DNS failure for `…alfaintra.net`; run crashes | Shipped config targets the Alfa Sandbox, reachable only on the Alfa network | Run on-network, or force the offline path: `AGENT_MODE=offline GROUNDEDNESS_MODE=offline RESOLUTION_MODE=offline` (or blank `base_url` / set `mode = "offline"`) |
-| `[SSL: CERTIFICATE_VERIFY_FAILED] … self-signed certificate` (on VPN) | The Sandbox presents a self-signed TLS cert; Python verifies by default | `insecure = true` in the role's `agents.toml` section (= `curl -k`; shipped on for Sandbox roles), or install the bank CA: `ca_bundle = "path/to/alfa_ca.pem"`; env: `{ROLE}_INSECURE=1` / `{ROLE}_CA_BUNDLE=path` |
+| `[SSL: CERTIFICATE_VERIFY_FAILED] … self-signed certificate` (on VPN) | The Sandbox presents a self-signed TLS cert; Python verifies by default | `insecure = true` in the role's `agents.toml` section (= `curl -k`; shipped on for Sandbox roles); proper fix: get the bank CA cert and set `SSL_CERT_FILE=/path/to/alfa_ca.pem` in `.env` |
 | `agents.toml` ignored (defaults used) | Python < 3.11 (no `tomllib`) | Use Python 3.11+ |
 | Live MCP: `KeyError: 'amount'` / wrong amounts | Server tool schema/shape differs | Adapt `_tool_args` in `mcp_client.py`; server must return `{operations:[{…,"amount":{"value","minorUnits"}}]}` (rubles = value/minorUnits) |
 

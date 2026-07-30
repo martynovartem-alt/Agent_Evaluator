@@ -13,12 +13,11 @@ import oai
 
 def _spec(system_id: str = "", rps: float = 0.0,
           base_url: str = "https://sandbox.test/internal/llm/v1",
-          insecure: bool = False, ca_bundle: str = "") -> config.AgentSpec:
+          insecure: bool = False) -> config.AgentSpec:
     return config.AgentSpec(role="resolution", provider="openai", mode="llm",
                             base_url=base_url, api_key="uuid-key",
                             model="test-model", effort="medium", prompt="prompts/resolution.md",
-                            system_id=system_id, rps=rps,
-                            insecure=insecure, ca_bundle=ca_bundle)
+                            system_id=system_id, rps=rps, insecure=insecure)
 
 
 def _fake_urlopen(captured: list, contexts: list | None = None):
@@ -111,12 +110,7 @@ class TestSandboxHeaders(unittest.TestCase):
 
 
 class TestTlsContext(unittest.TestCase):
-    """TLS knobs: insecure (curl -k, the Sandbox self-signed cert) and ca_bundle."""
-
-    def setUp(self):
-        oai._ssl_context.cache_clear()
-
-    tearDown = setUp
+    """insecure = true → verification off (curl -k, the Sandbox self-signed cert)."""
 
     def _chat_context(self, spec):
         """Run oai.chat with urlopen mocked; return the context urlopen received."""
@@ -135,21 +129,6 @@ class TestTlsContext(unittest.TestCase):
         self.assertEqual(ctx.verify_mode, ssl.CERT_NONE)
         self.assertFalse(ctx.check_hostname)
 
-    def test_ca_bundle_builds_cafile_context(self):
-        sentinel = ssl.create_default_context()
-        with mock.patch.object(oai.ssl, "create_default_context",
-                               return_value=sentinel) as create:
-            ctx = self._chat_context(_spec(ca_bundle="/certs/alfa_ca.pem"))
-        create.assert_called_once_with(cafile="/certs/alfa_ca.pem")
-        self.assertIs(ctx, sentinel)
-
-    def test_insecure_wins_over_ca_bundle(self):
-        ctx = oai._ssl_context(True, "/certs/alfa_ca.pem")
-        self.assertEqual(ctx.verify_mode, ssl.CERT_NONE)
-
-    def test_context_is_cached(self):
-        self.assertIs(oai._ssl_context(True, ""), oai._ssl_context(True, ""))
-
 
 class TestCertErrorRemediation(unittest.TestCase):
     """A certificate failure must point at insecure/ca_bundle, not the VPN hint."""
@@ -165,7 +144,7 @@ class TestCertErrorRemediation(unittest.TestCase):
             "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate")
         e = self._chat_error(urllib.error.URLError(reason))
         self.assertIn("insecure = true", e.what_to_do)
-        self.assertIn("ca_bundle", e.what_to_do)
+        self.assertIn("SSL_CERT_FILE", e.what_to_do)
 
     def test_other_network_failure_keeps_vpn_hint(self):
         e = self._chat_error(urllib.error.URLError(OSError("no route to host")))

@@ -136,8 +136,7 @@ provider = "openai"                        # "anthropic" | "openai" (OpenAI-со
 base_url = "https://agenapisandbox.moscow.alfaintra.net/internal/llm/v1"
 system_id = "sanduser"                     # заголовок `systemid` Sandbox (без него — 406)
 rps      = 0.2                             # жёсткий лимит Sandbox — один запрос в 5 с, общий
-insecure = true                            # сертификат Sandbox самоподписанный — отключить
-                                           # проверку TLS (аналог curl -k); либо ca_bundle = "путь к CA"
+insecure = true                            # сертификат Sandbox самоподписанный — отключить проверку TLS (аналог curl -k)
 model    = "gpt-oss-120b"                  # агент вызывает инструменты; tools в Sandbox
                                            # документированы только для QwQ-32B / llama-3.3 / gpt-oss-120b
 prompt   = "agent_prompt_v2.md"            # его системный промпт (замените файл, чтобы изменить)
@@ -304,7 +303,7 @@ python3 -m unittest discover -s tests -t .
 | `RuntimeError: … requires MCP_COMMAND` / `MCP_SERVER_URL` | Live-MCP без данных подключения | Задайте `command` (stdio) или `server_url` (http) в `agents.toml [mcp]` |
 | Ошибка соединения / 401 / 404 от API | Неверный `base_url`, несоответствие `provider`↔эндпоинт или ключ↔эндпоинт | Сопоставьте `provider` с эндпоинтом (`openai` для OpenAI-совместимых, `anthropic` для Anthropic); для Anthropic оставьте `base_url = ""`; ключ должен подходить к эндпоинту |
 | `URLError` / ошибка DNS для `…alfaintra.net`; прогон падает | Поставляемая конфигурация указывает на Sandbox Альфы, доступный только из сети Альфы | Запускайте из сети Альфы или включите офлайн-путь: `AGENT_MODE=offline GROUNDEDNESS_MODE=offline RESOLUTION_MODE=offline` (или очистите `base_url` / задайте `mode = "offline"`) |
-| `[SSL: CERTIFICATE_VERIFY_FAILED] … self-signed certificate` (при этом VPN подключён) | У Sandbox самоподписанный TLS-сертификат; Python по умолчанию проверяет сертификаты | `insecure = true` в секции роли в `agents.toml` (аналог `curl -k`; в поставке уже включено для Sandbox-ролей), либо установить сертификат банка: `ca_bundle = "путь/к/alfa_ca.pem"`; env: `{ROLE}_INSECURE=1` / `{ROLE}_CA_BUNDLE=путь` |
+| `[SSL: CERTIFICATE_VERIFY_FAILED] … self-signed certificate` (при этом VPN подключён) | У Sandbox самоподписанный TLS-сертификат; Python по умолчанию проверяет сертификаты | `insecure = true` в секции роли в `agents.toml` (аналог `curl -k`; в поставке уже включено для Sandbox-ролей); правильное решение: получить CA-сертификат банка и прописать `SSL_CERT_FILE=/путь/к/alfa_ca.pem` в `.env` |
 | `agents.toml` игнорируется (берутся значения по умолчанию) | Python < 3.11 (нет `tomllib`) | Используйте Python 3.11+ |
 | Live-MCP: `KeyError: 'amount'` / неверные суммы | Схема/формат инструмента сервера отличается | Подгоните `_tool_args` в `mcp_client.py`; сервер должен возвращать `{operations:[{…,"amount":{"value","minorUnits"}}]}` (рубли = value/minorUnits) |
 

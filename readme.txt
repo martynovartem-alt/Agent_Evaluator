@@ -69,8 +69,9 @@ AGENT EVALUATOR — ПОШАГОВАЯ ИНСТРУКЦИЯ (RU)          [Engli
    - Таймауты .............. вы не в VPN/VDI
    - CERTIFICATE_VERIFY_FAILED (в VPN) ... самоподписанный сертификат
                              Sandbox — insecure = true в agents.toml
-                             (аналог curl -k; в поставке уже включено)
-                             или ca_bundle = путь к CA-сертификату банка
+                             (аналог curl -k; в поставке уже включено);
+                             правильное решение: SSL_CERT_FILE=путь к
+                             CA-сертификату банка в .env
    - «stub (no LLM)» ....... нет ключа в .env или *_MODE=offline
    - Ошибка 429 ............ превышен лимит 0.2 RPS (проверьте rps=0.2
                              в agents.toml)
@@ -154,8 +155,8 @@ TROUBLESHOOTING
    - Timeouts .............. you are not on VPN/VDI
    - CERTIFICATE_VERIFY_FAILED (while on VPN) ... the Sandbox cert is
                              self-signed — insecure = true in agents.toml
-                             (curl -k equivalent; shipped on) or
-                             ca_bundle = path to the bank CA cert
+                             (curl -k equivalent; shipped on); proper fix:
+                             SSL_CERT_FILE=path to the bank CA cert in .env
    - "stub (no LLM)" ....... no key in .env, or *_MODE=offline
    - Error 429 ............. 0.2 RPS limit exceeded (check rps=0.2
                              in agents.toml)

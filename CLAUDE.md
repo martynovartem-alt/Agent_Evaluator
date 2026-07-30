@@ -38,9 +38,9 @@ Each LLM role in the pipeline is configured **independently** in `agents.toml`: 
 Sandbox/AlfaGen API (`4. Sandbox API.pdf`): `system_id` (sent as the `systemid` header, with
 a fresh unique `messageid` per request) and `rps` (endpoint rate limit; Sandbox = 0.2 RPS,
 enforced by a shared per-endpoint throttle in `oai.py`). TLS: the Sandbox cert is self-signed —
-per-role `insecure = true` (curl `-k`, shipped on for the Sandbox sections) or `ca_bundle`
-(bank CA PEM path; the proper fix), provider="openai" roles only, env `{ROLE}_INSECURE`/
-`{ROLE}_CA_BUNDLE`. Sandbox is VPN/VDI-only; tools
+per-role `insecure = true` (curl `-k`, shipped on for the Sandbox sections; provider="openai"
+roles only); the proper fix needs no code: `SSL_CERT_FILE=<bank CA PEM>` in `.env`.
+Sandbox is VPN/VDI-only; tools
 (function calling) are documented only for QwQ-32B / llama-3.3 / gpt-oss-120b, so `[agent]`
 must use one of those. Three roles:
 `[agent]` (system under test), `[groundedness]`, `[resolution]`. Plus `[mcp]` (tool backend)
