@@ -33,6 +33,10 @@ _HEADERS = {
     "is agents answer correct?": "human_label",
     "assesors comment": "assessor_comment",
     "intent": "intent",
+    # Mock identity columns (filled by gen_clients.py; the id header typo is in the workbook)
+    "client_name (mock)": "client_name",
+    "clietn_id(mock)": "client_id",
+    "client_id (mock)": "client_id",
 }
 
 
