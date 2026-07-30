@@ -15,9 +15,14 @@ sites (agent.py, judges/_llm.py) and tests keep working unchanged.
 
 Env: OAI_TIMEOUT — request timeout in seconds (default 180); the throttle sleeps before
 sending, so the timeout only covers the HTTP call itself.
+
+TLS: per-role `insecure` (skip verification — curl -k, for the Sandbox's self-signed cert)
+and `ca_bundle` (verify against the bank CA PEM) flow in on the spec; see _ssl_context().
 """
+import functools
 import json
 import os
+import ssl
 import threading
 import time
 import urllib.error
@@ -27,6 +32,21 @@ import uuid
 import errors
 
 DEFAULT_BASE_URL = "https://api.openai.com/v1"
+
+
+@functools.lru_cache(maxsize=None)
+def _ssl_context(insecure: bool, ca_bundle: str) -> ssl.SSLContext | None:
+    """TLS settings for a spec: None → default verification; insecure → skip it entirely
+    (curl -k; wins over ca_bundle); ca_bundle → verify against that CA PEM instead.
+    Cached — SSLContext is shareable across connections and threads."""
+    if insecure:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False          # must precede verify_mode = CERT_NONE
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
+    if ca_bundle:
+        return ssl.create_default_context(cafile=ca_bundle)
+    return None
 
 
 class RateLimiter:
@@ -83,12 +103,16 @@ class OaiClient:
         req = urllib.request.Request(url, data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
                                      headers=self._headers(spec))
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            ctx = _ssl_context(getattr(spec, "insecure", False), getattr(spec, "ca_bundle", ""))
+            with urllib.request.urlopen(req, timeout=self.timeout, context=ctx) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
+        except FileNotFoundError as e:      # ca_bundle points at a missing PEM
+            raise errors.ConfigError(f"ca_bundle not found: {getattr(spec, 'ca_bundle', '')}",
+                                     "fix the ca_bundle path in agents.toml (or use insecure = true)") from e
         except urllib.error.HTTPError as e:
             raise errors.ApiError.from_http(e.code, e.read().decode("utf-8"), spec.model) from e
-        except urllib.error.URLError as e:  # Sandbox is VPN/VDI-only — say so
-            raise errors.NetworkError(f"{spec.model} cannot reach {url}: {e.reason}") from e
+        except urllib.error.URLError as e:  # no VPN, or a cert failure — remediation differs
+            raise errors.NetworkError.from_url_error(e.reason, spec.model, url) from e
         try:
             return data["choices"][0]["message"]
         except (KeyError, IndexError, TypeError) as e:

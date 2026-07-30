@@ -67,6 +67,10 @@ AGENT EVALUATOR — ПОШАГОВАЯ ИНСТРУКЦИЯ (RU)          [Engli
    - Ошибка 400 messageId .. повторный messageid (не должно случаться —
                              клиент генерирует уникальный сам)
    - Таймауты .............. вы не в VPN/VDI
+   - CERTIFICATE_VERIFY_FAILED (в VPN) ... самоподписанный сертификат
+                             Sandbox — insecure = true в agents.toml
+                             (аналог curl -k; в поставке уже включено)
+                             или ca_bundle = путь к CA-сертификату банка
    - «stub (no LLM)» ....... нет ключа в .env или *_MODE=offline
    - Ошибка 429 ............ превышен лимит 0.2 RPS (проверьте rps=0.2
                              в agents.toml)
@@ -148,6 +152,10 @@ TROUBLESHOOTING
    - Error 400 messageId ... repeated messageid (should not happen —
                              the client generates a unique one)
    - Timeouts .............. you are not on VPN/VDI
+   - CERTIFICATE_VERIFY_FAILED (while on VPN) ... the Sandbox cert is
+                             self-signed — insecure = true in agents.toml
+                             (curl -k equivalent; shipped on) or
+                             ca_bundle = path to the bank CA cert
    - "stub (no LLM)" ....... no key in .env, or *_MODE=offline
    - Error 429 ............. 0.2 RPS limit exceeded (check rps=0.2
                              in agents.toml)

@@ -74,6 +74,9 @@ class AgentSpec:
     name: str = ""     # panelist name in panel voting; defaults to the role name
     system_id: str = ""  # `systemid` header (Alfa Sandbox/AlfaGen API); "" → header not sent
     rps: float = 0.0     # endpoint rate limit, requests/sec (Sandbox: 0.2); 0 → unlimited
+    insecure: bool = False  # skip TLS verification (curl -k) — self-signed intranet endpoints;
+                            # provider="openai" roles only
+    ca_bundle: str = ""     # CA PEM path (relative to repo root) — the proper fix vs insecure
 
     def prompt_text(self) -> str:
         return (ROOT / self.prompt).read_text()
@@ -95,17 +98,24 @@ def _base_cfg(role: str) -> dict:
         cfg["mode"] = os.getenv(f"{role.upper()}_MODE")
     if os.getenv(f"{role.upper()}_MODEL"):                       # e.g. RESOLUTION_MODEL for A/B
         cfg["model"] = os.getenv(f"{role.upper()}_MODEL")
+    if os.getenv(f"{role.upper()}_INSECURE"):                    # "0"/"false" force-off a toml true
+        cfg["insecure"] = os.getenv(f"{role.upper()}_INSECURE").lower() in ("1", "true", "yes", "on")
+    if os.getenv(f"{role.upper()}_CA_BUNDLE"):
+        cfg["ca_bundle"] = os.getenv(f"{role.upper()}_CA_BUNDLE")
     return cfg
 
 
 def _resolve(role: str, cfg: dict, name: str = "") -> AgentSpec:
     api_key = os.getenv(cfg.get("api_key_env") or "") or os.getenv("ANTHROPIC_API_KEY", "")
+    ca = cfg.get("ca_bundle", "")
     return AgentSpec(
         role=role, provider=cfg.get("provider", "anthropic"), mode=cfg.get("mode", "auto"),
         base_url=cfg.get("base_url", ""), api_key=api_key,
         model=cfg["model"], effort=cfg.get("effort", "medium"), prompt=cfg["prompt"],
         name=name or role,
         system_id=cfg.get("system_id", ""), rps=float(cfg.get("rps", 0) or 0),
+        insecure=bool(cfg.get("insecure", False)),
+        ca_bundle=ca if not ca or Path(ca).is_absolute() else str(ROOT / ca),
     )
 
 

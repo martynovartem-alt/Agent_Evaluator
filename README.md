@@ -41,9 +41,11 @@ All LLM roles (`[agent]`, `[groundedness]`, `[resolution]`, `[scope]`) are confi
 independently in `agents.toml` and run on the bank's **Alfa Sandbox API** (AlfaGen) — the
 client (`oai.py`) implements the Sandbox contract: `systemid` header, a unique `messageid`
 per request, and a shared **0.2 RPS** throttle. Deployment constraints: **bank VPN/VDI
-only**, and **only the models from the Sandbox list** (`Alfa_LLM_endpoints.png` /
-`"4. Sandbox API.pdf"`); tools-capable models for `[agent]`: QwQ-32B, llama-3.3,
-gpt-oss-120b. Step-by-step setup: **`readme.txt`** (RU + EN).
+only**, **self-signed TLS cert** on the intranet endpoint (`insecure = true` in `agents.toml`
+= `curl -k`, shipped on; `ca_bundle` = bank CA PEM for the proper fix), and **only the models
+from the Sandbox list** (`Alfa_LLM_endpoints.png` / `"4. Sandbox API.pdf"`); tools-capable
+models for `[agent]`: QwQ-32B, llama-3.3, gpt-oss-120b. Step-by-step setup: **`readme.txt`**
+(RU + EN).
 
 ## Quickstart
 

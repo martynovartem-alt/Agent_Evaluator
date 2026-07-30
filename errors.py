@@ -6,6 +6,7 @@ so scripts like eval_fast can print an actionable diagnosis instead of a raw tra
 The `api` remediations encode the Sandbox error table from "4. Sandbox API.pdf"
 (406 → systemid, 400 → messageid/params, 429 → the 0.2 RPS limit, timeouts → VPN).
 """
+import ssl
 
 
 class EvalError(Exception):
@@ -70,6 +71,18 @@ class NetworkError(ApiError):
     """The endpoint is unreachable — for the Sandbox that almost always means no VPN."""
     default_fix = ("connect to the bank VPN/VDI — the Sandbox is intranet-only; "
                    "off-network use *_MODE=offline for the stub path")
+    cert_fix = ("the endpoint presents a self-signed certificate — set insecure = true in the "
+                "role's section of agents.toml (curl -k equivalent), or point ca_bundle at the "
+                "bank CA PEM; env: {ROLE}_INSECURE=1 / {ROLE}_CA_BUNDLE=path")
+
+    @classmethod
+    def from_url_error(cls, reason, model: str, url: str) -> "NetworkError":
+        """URLError.reason → remediation: a certificate failure gets the TLS fix (the VPN
+        hint would mislead — cert errors happen ON the VPN), anything else the VPN hint."""
+        is_cert = (isinstance(reason, ssl.SSLCertVerificationError)
+                   or "CERTIFICATE_VERIFY_FAILED" in str(reason))
+        return cls(f"{model} cannot reach {url}: {reason}",
+                   cls.cert_fix if is_cert else None)
 
 
 class LlmOutputError(EvalError):

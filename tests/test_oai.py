@@ -1,24 +1,31 @@
-"""Sandbox API client contract: rate-limit slot math + required headers (no network)."""
+"""Sandbox API client contract: rate-limit slot math + required headers + TLS (no network)."""
 import io
 import json
+import ssl
 import unittest
+import urllib.error
 from unittest import mock
 
 import config
+import errors
 import oai
 
 
 def _spec(system_id: str = "", rps: float = 0.0,
-          base_url: str = "https://sandbox.test/internal/llm/v1") -> config.AgentSpec:
+          base_url: str = "https://sandbox.test/internal/llm/v1",
+          insecure: bool = False, ca_bundle: str = "") -> config.AgentSpec:
     return config.AgentSpec(role="resolution", provider="openai", mode="llm",
                             base_url=base_url, api_key="uuid-key",
                             model="test-model", effort="medium", prompt="prompts/resolution.md",
-                            system_id=system_id, rps=rps)
+                            system_id=system_id, rps=rps,
+                            insecure=insecure, ca_bundle=ca_bundle)
 
 
-def _fake_urlopen(captured: list):
-    def fake(req, timeout=None):
+def _fake_urlopen(captured: list, contexts: list | None = None):
+    def fake(req, timeout=None, context=None):
         captured.append(req)
+        if contexts is not None:
+            contexts.append(context)
         body = json.dumps({"choices": [{"message": {"role": "assistant", "content": "ok"}}]})
         resp = mock.MagicMock()
         resp.__enter__ = lambda s: s
@@ -101,6 +108,68 @@ class TestSandboxHeaders(unittest.TestCase):
     def test_url_is_chat_completions(self):
         req = self._chat(_spec(system_id="sanduser"))
         self.assertEqual(req.full_url, "https://sandbox.test/internal/llm/v1/chat/completions")
+
+
+class TestTlsContext(unittest.TestCase):
+    """TLS knobs: insecure (curl -k, the Sandbox self-signed cert) and ca_bundle."""
+
+    def setUp(self):
+        oai._ssl_context.cache_clear()
+
+    tearDown = setUp
+
+    def _chat_context(self, spec):
+        """Run oai.chat with urlopen mocked; return the context urlopen received."""
+        contexts = []
+        with mock.patch.object(oai.urllib.request, "urlopen",
+                               side_effect=_fake_urlopen([], contexts)):
+            oai.chat(spec, [{"role": "user", "content": "hi"}])
+        return contexts[0]
+
+    def test_default_context_is_none(self):
+        # no TLS knobs → urlopen gets context=None, i.e. stock certificate verification
+        self.assertIsNone(self._chat_context(_spec()))
+
+    def test_insecure_disables_verification(self):
+        ctx = self._chat_context(_spec(insecure=True))
+        self.assertEqual(ctx.verify_mode, ssl.CERT_NONE)
+        self.assertFalse(ctx.check_hostname)
+
+    def test_ca_bundle_builds_cafile_context(self):
+        sentinel = ssl.create_default_context()
+        with mock.patch.object(oai.ssl, "create_default_context",
+                               return_value=sentinel) as create:
+            ctx = self._chat_context(_spec(ca_bundle="/certs/alfa_ca.pem"))
+        create.assert_called_once_with(cafile="/certs/alfa_ca.pem")
+        self.assertIs(ctx, sentinel)
+
+    def test_insecure_wins_over_ca_bundle(self):
+        ctx = oai._ssl_context(True, "/certs/alfa_ca.pem")
+        self.assertEqual(ctx.verify_mode, ssl.CERT_NONE)
+
+    def test_context_is_cached(self):
+        self.assertIs(oai._ssl_context(True, ""), oai._ssl_context(True, ""))
+
+
+class TestCertErrorRemediation(unittest.TestCase):
+    """A certificate failure must point at insecure/ca_bundle, not the VPN hint."""
+
+    def _chat_error(self, exc):
+        with mock.patch.object(oai.urllib.request, "urlopen", side_effect=exc):
+            with self.assertRaises(errors.NetworkError) as cm:
+                oai.chat(_spec(), [{"role": "user", "content": "hi"}])
+        return cm.exception
+
+    def test_cert_failure_gets_tls_fix(self):
+        reason = ssl.SSLCertVerificationError(
+            "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate")
+        e = self._chat_error(urllib.error.URLError(reason))
+        self.assertIn("insecure = true", e.what_to_do)
+        self.assertIn("ca_bundle", e.what_to_do)
+
+    def test_other_network_failure_keeps_vpn_hint(self):
+        e = self._chat_error(urllib.error.URLError(OSError("no route to host")))
+        self.assertIn("VPN", e.what_to_do)
 
 
 if __name__ == "__main__":

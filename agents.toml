@@ -15,6 +15,9 @@
 #   - headers: systemid = "sanduser" (406 without it); unique messageid per request (oai.py)
 #   - rate limit 0.2 RPS → `rps = 0.2` throttles all calls to the endpoint (shared slots)
 #   - network: VPN/VDI only — off-network use the offline path (*_MODE=offline) or another endpoint
+#   - TLS: the intranet endpoint presents a self-signed cert → `insecure = true` (curl -k) or
+#     `ca_bundle = "path/to/alfa_ca.pem"` once the bank CA cert is obtained; provider="openai"
+#     roles only; env overrides {ROLE}_INSECURE / {ROLE}_CA_BUNDLE
 # Models available now (A/B via env, e.g. RESOLUTION_MODEL=...):
 #   Qwen/Qwen3.6-35B-A3B-FP8   (newest, recommended judge; multimodal)
 #   Qwen/QwQ-32B               (reasoning)  ·  Qwen/Qwen3-Coder-Next  ·  gpt-oss-120b  ·  /models/llama-3.3
@@ -28,6 +31,9 @@ base_url = "https://agenapisandbox.moscow.alfaintra.net/internal/llm/v1"
 api_key_env = "SANDBOX_API_KEY"
 system_id = "sanduser"
 rps = 0.2
+insecure = true                    # self-signed cert on the intranet endpoint — skip TLS
+                                   # verification (curl -k); proper fix once the bank CA cert
+# ca_bundle = "certs/alfa_ca.pem"  # is obtained: set ca_bundle and remove insecure
 model = "gpt-oss-120b"             # needs MCPClear/getInstruction tool calls — tools are documented
                                    # for QwQ-32B / llama-3.3 / gpt-oss-120b only; if your production
                                    # agent runs Qwen3.6-35B, switch back and verify tool calls work
@@ -41,6 +47,9 @@ base_url = "https://agenapisandbox.moscow.alfaintra.net/internal/llm/v1"
 api_key_env = "SANDBOX_API_KEY"
 system_id = "sanduser"
 rps = 0.2
+insecure = true                    # self-signed cert on the intranet endpoint — skip TLS
+                                   # verification (curl -k); proper fix once the bank CA cert
+# ca_bundle = "certs/alfa_ca.pem"  # is obtained: set ca_bundle and remove insecure
 model = "Qwen/Qwen3.6-35B-A3B-FP8"
 prompt = "prompts/groundedness.md"
 effort = "medium"
@@ -52,6 +61,9 @@ base_url = "https://agenapisandbox.moscow.alfaintra.net/internal/llm/v1"
 api_key_env = "SANDBOX_API_KEY"
 system_id = "sanduser"
 rps = 0.2
+insecure = true                    # self-signed cert on the intranet endpoint — skip TLS
+                                   # verification (curl -k); proper fix once the bank CA cert
+# ca_bundle = "certs/alfa_ca.pem"  # is obtained: set ca_bundle and remove insecure
 model = "Qwen/Qwen3.6-35B-A3B-FP8"
 prompt = "prompts/resolution.md"
 effort = "medium"
@@ -83,6 +95,9 @@ base_url = "https://agenapisandbox.moscow.alfaintra.net/internal/llm/v1"
 api_key_env = "SANDBOX_API_KEY"
 system_id = "sanduser"
 rps = 0.2
+insecure = true                    # self-signed cert on the intranet endpoint — skip TLS
+                                   # verification (curl -k); proper fix once the bank CA cert
+# ca_bundle = "certs/alfa_ca.pem"  # is obtained: set ca_bundle and remove insecure
 model = "Qwen/Qwen3.6-35B-A3B-FP8"
 prompt = "prompts/scope.md"
 effort = "medium"
