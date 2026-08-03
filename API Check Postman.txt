@@ -1,0 +1,95 @@
+Collection variables (Collection → Variables):
+
+Variable	Value
+baseUrl	https://your-gateway-host
+apiKey	your key (mark it secret)
+model	leave empty — request 1 fills it
+
+
+
+
+Request 1 — GET {{baseUrl}}/internal/llm/v1/models
+
+Header: Authorization: Bearer {{apiKey}}
+
+
+
+const code = pm.response.code;
+
+pm.test("Key not rejected (no 401/403)", () => {
+    pm.expect(code, `got HTTP ${code}`).to.not.be.oneOf([401, 403]);
+});
+
+pm.test("Status 200", () => pm.response.to.have.status(200));
+
+if (code === 200) {
+    const body = pm.response.json();
+    const list = body.data || body.models || (Array.isArray(body) ? body : []);
+    const ids = list.map(m => m.id || m.name || m);
+
+    pm.test("At least one model available", () => pm.expect(ids.length).to.be.above(0));
+
+    if (ids.length) {
+        pm.collectionVariables.set("model", ids[0]);
+        console.log("✅ Key valid. Models:", ids.join(", "));
+    }
+} else if (code === 401 || code === 403) {
+    console.log("❌ Key invalid or lacks permission:", pm.response.text());
+} else {
+    console.log(`⚠️ Unexpected ${code}:`, pm.response.text());
+}
+
+
+
+Request 2 — POST {{baseUrl}}/internal/llm/v1/chat/completions
+
+Headers: Authorization: Bearer {{apiKey}}, Content-Type: application/json
+
+Body (raw JSON):
+
+{
+  "model": "{{model}}",
+  "messages": [{"role": "user", "content": "ping"}],
+  "max_tokens": 5,
+  "stream": false
+}
+
+pm.test("Status 200", () => pm.response.to.have.status(200));
+pm.test("Responded under 30s", () => pm.expect(pm.response.responseTime).to.be.below(30000));
+
+if (pm.response.code === 200) {
+    const body = pm.response.json();
+    pm.test("Has a completion", () => {
+        pm.expect(body.choices).to.be.an("array").that.is.not.empty;
+        pm.expect(body.choices[0].message).to.have.property("content");
+    });
+    console.log("✅ Inference OK:", body.choices?.[0]?.message?.content);
+    console.log("Usage:", JSON.stringify(body.usage || {}));
+} else {
+    console.log(`❌ ${pm.response.code}:`, pm.response.text());
+}
+
+
+-----
+
+One request. That's the whole thing.
+
+POST {{baseUrl}}/internal/llm/v1/chat/completions
+
+Headers:
+
+Key	Value
+Authorization	Bearer {{apiKey}}
+systemId	sanduser
+Content-Type	application/json
+
+
+
+
+
+{
+  "model": "/models/llama-3.3",
+  "messages": [{"role": "user", "content": "say ok"}],
+  "max_tokens": 10
+}
+
