@@ -127,7 +127,7 @@ def ensure_jsonl(path: str) -> str:
 
 
 def load_labeled(path: str) -> list[dict]:
-    return [r for r in calibrate.load(path) if r.get("human_label") in calibrate.LABELS]
+    return calibrate.load_labeled(path)
 
 
 def validate(records: list[dict]) -> list[str]:

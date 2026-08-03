@@ -14,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 
 import config
+import dataset
 import progress
 from agent import run_agent
 from aggregate import aggregate_results, format_report
@@ -23,13 +24,7 @@ from judges.resolution import judge_resolution
 
 
 def load_cases(path: str) -> list[dict]:
-    cases = []
-    with open(path) as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                cases.append(json.loads(line))
-    return cases
+    return dataset.load_jsonl(path)
 
 
 async def evaluate_case(case: dict, trace: dict) -> dict:

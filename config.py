@@ -11,6 +11,7 @@ for convenience. Real env vars override `.env`. Point elsewhere with EVAL_CONFIG
     spec.available()                     # is this role's LLM usable?
     spec.prompt_text()                   # the role's system prompt
 """
+import functools
 import os
 from dataclasses import dataclass
 from importlib import util as importlib_util
@@ -61,6 +62,12 @@ def _anthropic_present() -> bool:
     return importlib_util.find_spec("anthropic") is not None
 
 
+@functools.lru_cache(maxsize=None)
+def _prompt_text(path: str) -> str:
+    """Prompts are read once per process — every LLM call re-reads them otherwise."""
+    return (ROOT / path).read_text()
+
+
 @dataclass(frozen=True)
 class AgentSpec:
     role: str
@@ -78,7 +85,7 @@ class AgentSpec:
                             # proper fix, no code: SSL_CERT_FILE=<bank CA PEM> in .env
 
     def prompt_text(self) -> str:
-        return (ROOT / self.prompt).read_text()
+        return _prompt_text(self.prompt)
 
     def available(self) -> bool:
         if self.mode == "offline":

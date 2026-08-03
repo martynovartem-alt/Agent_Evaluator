@@ -19,6 +19,7 @@ from datetime import datetime
 from pathlib import Path
 
 import config
+import dataset
 import progress
 from judges import scope as scope_mod
 from judges.resolution import FAILURE_REASONS, judge_resolution
@@ -37,7 +38,12 @@ def to_binary(label: str) -> str:
 
 
 def load(path: str) -> list[dict]:
-    return [json.loads(l) for l in Path(path).read_text().splitlines() if l.strip()]
+    return dataset.load_jsonl(path)
+
+
+def load_labeled(path: str) -> list[dict]:
+    """Rows carrying a usable 3-way human label (shared with eval_fast)."""
+    return [r for r in load(path) if r.get("human_label") in LABELS]
 
 
 _ORDER = {"no": 0, "partial": 1, "yes": 2}          # ordinal scale for within-1
@@ -290,7 +296,7 @@ def judge_banner() -> str:
 async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = False,
                limit: int | None = None, binary: bool = False, repeat: int = 1,
                classify_scope: bool = False) -> None:
-    rows = [r for r in load(dataset_path) if r.get("human_label") in LABELS]
+    rows = load_labeled(dataset_path)
     if limit:
         rows = rows[:limit]
     labels, order = (LABELS_BINARY, _ORDER_BINARY) if binary else (LABELS, _ORDER)
@@ -333,32 +339,30 @@ async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = 
     failures = failure_breakdown(last_records)
     by_scope = scope_summary(last_records)
     by_intent = intent_summary(last_records)
+    # One assembly path for both modes; they differ only in the headline metrics
+    # (mean ± std over runs vs the single run) and the confusion source.
     if repeat > 1:
         agg = agg_metrics(reports)
-        conf_avg = {h: {j: round(statistics.mean(r["confusion"][h][j] for r in reports), 1) for j in labels} for h in labels}
-        result = {"n": reports[0]["n"], "repeat": repeat, **agg, "runs": reports, "confusion_avg": conf_avg,
-                  "failure_reasons": failures, "by_scope": by_scope, "by_intent": by_intent}
-        if binary_summary:
-            result["binary_collapse"] = binary_summary  # from the last run's records
-        (run_dir / "calibration.json").write_text(json.dumps(result, ensure_ascii=False, indent=2))
-        print(f"labeled rows: {result['n']} | agreement: {agg['agreement_mean']}%±{agg['agreement_std']} | "
-              f"kappa: {agg['kappa_mean']}±{agg['kappa_std']} | within-1: {agg['within1_mean']}%±{agg['within1_std']}")
-        _print_pr(reports[-1], labels)
-        print("avg confusion (rows = human, cols = judge):")
-        _print_confusion(conf_avg, labels)
+        conf = {h: {j: round(statistics.mean(r["confusion"][h][j] for r in reports), 1)
+                    for j in labels} for h in labels}
+        result = {"n": reports[0]["n"], "repeat": repeat, **agg, "runs": reports, "confusion_avg": conf}
+        headline = (f"labeled rows: {result['n']} | agreement: {agg['agreement_mean']}%±{agg['agreement_std']} | "
+                    f"kappa: {agg['kappa_mean']}±{agg['kappa_std']} | within-1: {agg['within1_mean']}%±{agg['within1_std']}")
+        conf_title = "avg confusion (rows = human, cols = judge):"
     else:
-        report = reports[0]
-        report["failure_reasons"] = failures
-        report["by_scope"] = by_scope
-        report["by_intent"] = by_intent
-        if binary_summary:
-            report["binary_collapse"] = binary_summary
-        (run_dir / "calibration.json").write_text(json.dumps(report, ensure_ascii=False, indent=2))
-        print(f"labeled rows: {report['n']} | agreement: {report['agreement']}% | "
-              f"kappa: {report['kappa']} | within-1: {report['within1']}%")
-        _print_pr(report, labels)
-        print("confusion (rows = human, cols = judge):")
-        _print_confusion(report["confusion"], labels)
+        result = reports[0]
+        conf = result["confusion"]
+        headline = (f"labeled rows: {result['n']} | agreement: {result['agreement']}% | "
+                    f"kappa: {result['kappa']} | within-1: {result['within1']}%")
+        conf_title = "confusion (rows = human, cols = judge):"
+    result.update({"failure_reasons": failures, "by_scope": by_scope, "by_intent": by_intent})
+    if binary_summary:
+        result["binary_collapse"] = binary_summary  # from the last run's records
+    (run_dir / "calibration.json").write_text(json.dumps(result, ensure_ascii=False, indent=2))
+    print(headline)
+    _print_pr(reports[-1], labels)
+    print(conf_title)
+    _print_confusion(conf, labels)
     if binary_summary:
         print(f"binary (correct = Да; Частично counts as incorrect): "
               f"agreement {binary_summary['agreement']}% | kappa {binary_summary['kappa']}")

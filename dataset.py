@@ -45,6 +45,12 @@ def norm_label(value: str) -> str:
     return LABEL_MAP.get((value or "").strip().lower(), "")
 
 
+def load_jsonl(path: str) -> list[dict]:
+    """One JSON object per non-blank line — the shared loader for every script."""
+    with open(path) as f:
+        return [json.loads(line) for line in f if line.strip()]
+
+
 def _excel_date(value: str) -> str:
     try:
         return (datetime(1899, 12, 30) + timedelta(days=float(value))).date().isoformat()
@@ -78,25 +84,32 @@ def _sheet_rows(z: zipfile.ZipFile, name: str, strings: list[str]) -> list[dict]
     return rows
 
 
-def parse_xlsx(path: str) -> list[dict]:
-    z = zipfile.ZipFile(path)
-    strings = []
-    if "xl/sharedStrings.xml" in z.namelist():
-        root = ET.fromstring(z.read("xl/sharedStrings.xml"))
-        for si in root.findall(f"{NS}si"):
-            strings.append("".join(t.text or "" for t in si.iter(f"{NS}t")))
+def shared_strings(z: zipfile.ZipFile) -> list[str]:
+    if "xl/sharedStrings.xml" not in z.namelist():
+        return []
+    root = ET.fromstring(z.read("xl/sharedStrings.xml"))
+    return ["".join(t.text or "" for t in si.iter(f"{NS}t")) for si in root.findall(f"{NS}si")]
 
-    # The labeled table isn't always the first sheet (some workbooks lead with a pivot):
-    # pick the worksheet whose header row matches the most known columns.
-    rows, best = [], 0
+
+def labeled_sheet(z: zipfile.ZipFile, strings: list[str]) -> tuple[str | None, list[dict]]:
+    """(worksheet member name, rows) of the labeled table. It isn't always the first sheet
+    (some workbooks lead with a pivot): pick the one whose header row matches the most
+    known columns; (None, []) when no sheet scores ≥ 3."""
+    best_name, best_rows, best = None, [], 0
     for name in sorted(n for n in z.namelist() if re.fullmatch(r"xl/worksheets/sheet\d+\.xml", n)):
         candidate = _sheet_rows(z, name, strings)
         if not candidate:
             continue
         score = sum(1 for v in candidate[0].values() if (v or "").strip().lower() in _HEADERS)
         if score > best:
-            rows, best = candidate, score
-    if best < 3:  # no sheet looks like the labeled table
+            best_name, best_rows, best = name, candidate, score
+    return (best_name, best_rows) if best >= 3 else (None, [])
+
+
+def parse_xlsx(path: str) -> list[dict]:
+    z = zipfile.ZipFile(path)
+    _, rows = labeled_sheet(z, shared_strings(z))
+    if not rows:
         return []
     header = {i: _HEADERS.get((v or "").strip().lower()) for i, v in rows[0].items()}
     records = []

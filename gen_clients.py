@@ -40,13 +40,10 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-import xml.etree.ElementTree as ET
-
 import dataset as ds
 from gen_mcp import _operation, _uuid
 
 DEFAULT_XLSX = "Agents-new-answers(after_20_07_2026).xlsx"
-SHEET_RE = re.compile(r"xl/worksheets/sheet\d+\.xml")
 CODE_CHARS = string.ascii_uppercase + string.digits
 
 # Columns of the labeled sheet (0-based): A=client code, B=agent answer, C=date,
@@ -136,7 +133,8 @@ def extract_date(text: str, row_date: date) -> date | None:
     if m:
         word = m.group(2).lower()
         day = int(m.group(1))
-        month = MONTHS[next(k for k in MONTHS if word.startswith(k))]
+        # longest prefix first, so «март» can never be shadowed by «ма» (мая)
+        month = MONTHS[next(k for k in sorted(MONTHS, key=len, reverse=True) if word.startswith(k))]
     else:
         m = DATE_NUM_RE.search(text)
         if not m:
@@ -204,6 +202,26 @@ def planted_op(rng: random.Random, key: str, kop: int | None, when: date, seq: i
     }
 
 
+def _mention_pairs(m: dict) -> list[tuple[str, int | None]]:
+    """(template key, kopecks) per planted op: mentioned amounts cycle through the
+    mentioned keywords; no amounts → up to two keyword-typed ops at default prices."""
+    keys = m["keywords"] or ["generic"]
+    if m["amounts"]:
+        return [(keys[i % len(keys)], kop) for i, kop in enumerate(m["amounts"])]
+    return [(k, None) for k in keys[:2] if k != "generic"]
+
+
+def _op_dates(rng: random.Random, key: str, when: date, window_start: date) -> list[date]:
+    """FEE/SUBSCRIPTION plants recur ~monthly back toward the window start."""
+    dates = [when]
+    if PLANT[key][2] in ("FEE", "SUBSCRIPTION"):
+        for back in (30, 60):
+            prev = when - timedelta(days=back + rng.randint(-2, 2))
+            if prev >= window_start:
+                dates.append(prev)
+    return dates
+
+
 def build_client_ops(rng: random.Random, mentions: list[dict], window_end: date,
                      days: int, min_ops: int) -> tuple[list[dict], list[dict]]:
     """mentions: [{row_id, date, amounts[], keywords[], explicit_date}] for one client.
@@ -216,19 +234,10 @@ def build_client_ops(rng: random.Random, mentions: list[dict], window_end: date,
         return min(max(d, window_start), window_end)
 
     for m in mentions:
-        keys = m["keywords"] or ["generic"]
-        pairs = ([(keys[i % len(keys)], kop) for i, kop in enumerate(m["amounts"])]
-                 or [(k, None) for k in keys[:2] if k != "generic"])
-        for key, kop in pairs:
+        for key, kop in _mention_pairs(m):
             when = clamp(m["explicit_date"] or
                          m["date"] - timedelta(days=rng.randint(0, 12)))
-            dates = [when]
-            if PLANT[key][2] in ("FEE", "SUBSCRIPTION"):     # monthly recurrence
-                for back in (30, 60):
-                    prev = when - timedelta(days=back + rng.randint(-2, 2))
-                    if prev >= window_start:
-                        dates.append(prev)
-            for d in dates:
+            for d in _op_dates(rng, key, when, window_start):
                 op = planted_op(rng, key, kop, d, seq)
                 ops.append(op)
                 planted.append({"row_id": m["row_id"], "id": op["id"], "title": op["title"],
@@ -315,18 +324,11 @@ def rewrite_xlsx(path: str, sheet_name: str, new_xml: str) -> None:
 
 
 def labeled_sheet(z: zipfile.ZipFile, strings: list[str]) -> tuple[str, list[dict]]:
-    """(sheet member name, rows) of the labeled table — same scoring rule as dataset.py."""
-    best_name, best_rows, best = None, [], 0
-    for name in sorted(n for n in z.namelist() if SHEET_RE.fullmatch(n)):
-        rows = ds._sheet_rows(z, name, strings)
-        if not rows:
-            continue
-        score = sum(1 for v in rows[0].values() if (v or "").strip().lower() in ds._HEADERS)
-        if score > best:
-            best_name, best_rows, best = name, rows, score
-    if best < 3:
+    """dataset.labeled_sheet with a CLI-friendly failure."""
+    name, rows = ds.labeled_sheet(z, strings)
+    if name is None:
         sys.exit("no sheet in the workbook looks like the labeled table")
-    return best_name, best_rows
+    return name, rows
 
 
 # ── main ─────────────────────────────────────────────────────────────────────────────
@@ -343,9 +345,7 @@ def main() -> None:
     args = p.parse_args()
 
     z = zipfile.ZipFile(args.xlsx)
-    strings = ["".join(t.text or "" for t in si.iter(f"{ds.NS}t"))
-               for si in ET.fromstring(z.read("xl/sharedStrings.xml")).findall(f"{ds.NS}si")]
-    sheet_name, rows = labeled_sheet(z, strings)
+    sheet_name, rows = labeled_sheet(z, ds.shared_strings(z))
 
     # ── pass 1: rows → clients ──
     rng = random.Random(args.seed)
