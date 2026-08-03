@@ -347,7 +347,8 @@ def main() -> None:
     z = zipfile.ZipFile(args.xlsx)
     sheet_name, rows = labeled_sheet(z, ds.shared_strings(z))
 
-    # ── pass 1: rows → clients ──
+    # ── pass 1: rows → clients — keep existing codes verbatim; a code-less row reuses the
+    # code of an identical dialogue, otherwise gets a fresh C-prefixed one ──
     rng = random.Random(args.seed)
     taken = set()
     dialogue_code: dict[str, str] = {}
@@ -374,7 +375,8 @@ def main() -> None:
                 new_codes += 1
             r["code"] = code
 
-    # ── pass 2: per-client identity + mentions ──
+    # ── pass 2: give each client an identity (13-digit id, masked account, name blob with
+    # the id embedded — MCP_Answer_Json shapes) and collect what its dialogues mention ──
     clients: dict[str, dict] = {}
     used_ids, used_accts = set(), set()
     for r in content_rows:
@@ -403,7 +405,8 @@ def main() -> None:
                               "explicit_date": extract_date(text, row_date)})
         c["rows"].append(r["row_id"])
 
-    # ── pass 3: histories ──
+    # ── pass 3: build each client's 90-day history — planted ops from the dialogues
+    # plus fillers up to --min-ops — and write one MCP-shaped file per client ──
     index, total_ops, rows_with_plants = {}, 0, set()
     out_dir = Path(args.out)
     if not args.dry_run:

@@ -296,14 +296,17 @@ def judge_banner() -> str:
 async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = False,
                limit: int | None = None, binary: bool = False, repeat: int = 1,
                classify_scope: bool = False) -> None:
+    # 1. load the labeled rows — each already carries the agent's answer and the human label
     rows = load_labeled(dataset_path)
     if limit:
         rows = rows[:limit]
     labels, order = (LABELS_BINARY, _ORDER_BINARY) if binary else (LABELS, _ORDER)
     print(f"judge: {judge_banner()}{'  [binary: correct/incorrect]' if binary else ''}"
           f"{f'  × {repeat} runs' if repeat > 1 else ''}")
+    # 2. attach scope + intent to every row (deterministic rule; LLM classifier if asked)
     await assign_scopes(rows, classify_scope)
 
+    # 3. score every row with the resolution judge — repeated N times for mean ± std
     sem = asyncio.Semaphore(config.JUDGE_CONCURRENCY)
 
     reports, last_records = [], None
@@ -330,15 +333,18 @@ async def main(dataset_path: str, csv_path: str | None = None, all_rows: bool = 
             print(f"  run {i + 1}/{repeat}: agreement {report['agreement']}% | "
                   f"kappa {report['kappa']} | within-1 {report['within1']}%")
 
+    # 4. write the CSV — judge verdicts next to the human labels, for prompt-tuning
     run_dir = Path("runs") / datetime.now().strftime("%Y%m%dT%H%M%S")
     run_dir.mkdir(parents=True, exist_ok=True)
     out_csv = Path(csv_path) if csv_path else run_dir / ("rows.csv" if all_rows else "disagreements.csv")
     n_csv = write_csv(last_records, out_csv, all_rows)
 
+    # 5. derive the summaries from the scored records (no extra judge calls)
     binary_summary = None if binary else binary_collapse(last_records)
     failures = failure_breakdown(last_records)
     by_scope = scope_summary(last_records)
     by_intent = intent_summary(last_records)
+    # 6. assemble calibration.json and print the readable summary.
     # One assembly path for both modes; they differ only in the headline metrics
     # (mean ± std over runs vs the single run) and the confusion source.
     if repeat > 1:

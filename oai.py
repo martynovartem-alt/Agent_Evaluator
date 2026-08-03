@@ -73,19 +73,22 @@ class OaiClient:
              response_format: dict | None = None, temperature: float = 0.0,
              max_tokens: int = 1024) -> dict:
         """POST /chat/completions for the role `spec`; returns the assistant message dict."""
+        # 1. build the OpenAI-compatible request body
         body = {"model": spec.model, "messages": messages,
                 "temperature": temperature, "max_tokens": max_tokens}
         if tools:
             body["tools"] = tools
         if response_format:
             body["response_format"] = response_format
-        # throttle on the same normalized endpoint as the URL, so base_url spelling
-        # variants (trailing slash) cannot split the schedule and double the RPS
+        # 2. wait for this endpoint's rate slot (Sandbox: one request per 5 s, shared by
+        #    every role/panelist/thread). Throttle on the normalized endpoint so base_url
+        #    spelling variants (trailing slash) cannot split the schedule and double the RPS.
         endpoint = (spec.base_url or DEFAULT_BASE_URL).rstrip("/")
         url = endpoint + "/chat/completions"
         wait = self.limiter.reserve(endpoint, getattr(spec, "rps", 0.0), time.monotonic())
         if wait > 0:
             time.sleep(wait)
+        # 3. send; every failure becomes a typed error carrying a what-to-do remediation
         req = urllib.request.Request(url, data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
                                      headers=self._headers(spec))
         try:
@@ -97,6 +100,7 @@ class OaiClient:
         except urllib.error.URLError as e:  # no VPN — or a cert failure, which needs its own fix
             fix = errors.NetworkError.cert_fix if "CERTIFICATE_VERIFY_FAILED" in str(e.reason) else None
             raise errors.NetworkError(f"{spec.model} cannot reach {url}: {e.reason}", fix) from e
+        # 4. the assistant's reply is choices[0].message — anything else is a shape error
         try:
             return data["choices"][0]["message"]
         except (KeyError, IndexError, TypeError) as e:

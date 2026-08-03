@@ -44,9 +44,10 @@ class LlmJudge:
 
     async def judge(self, case: dict, trace: dict) -> dict:
         spec = self.spec()
-        if not spec.available():
+        if not spec.available():        # keyless/offline run → canned stub, pipeline still works
             return self.stub()
         try:
+            # LLM call → validated JSON → subclass shapes it into the result dict
             return self.shape(await self.call(spec, case, trace))
         except Exception as e:  # one bad row must not kill a batch — surface, don't crash
             return self.on_error(e)

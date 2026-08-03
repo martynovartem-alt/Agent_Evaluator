@@ -120,6 +120,8 @@ def format_report(report: dict) -> str:
             f"{k[:-6]} {d[k]:+g}" for k in d if k.endswith("_delta")
         )
         lines.append(f"vs {d['vs_run']}: {deltas}")
+    # one line per case: verdict[panel votes]·failure_reason + every check that failed,
+    # e.g. "failed subscription_299 no[nny]·incomplete facts✗"
     lines.append("Cases:")
     for c in report["cases"]:
         flags = [c["resolution_verdict"] or "?"]

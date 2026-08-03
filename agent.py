@@ -127,13 +127,16 @@ class LlmAgent(Agent):
         tool_calls, chunks, answer = [], [], ""
 
         for _ in range(MAX_TOOL_ITERS):
+            # 1. ask the model — it either answers the client or requests tools
             response = client.messages.create(
                 model=spec.model, max_tokens=4096, thinking={"type": "adaptive"},
                 system=system, tools=TOOLS, messages=messages,
             )
             if response.stop_reason != "tool_use":
+                # 2a. no tool request → this is the final answer, the loop is done
                 answer = "".join(b.text for b in response.content if b.type == "text").strip()
                 break
+            # 2b. the model wants tools: run each one and record it in the trace
             messages.append({"role": "assistant", "content": response.content})
             tool_results = []
             for block in response.content:
@@ -142,6 +145,7 @@ class LlmAgent(Agent):
                 result = _execute_tool(block.name, dict(block.input), uid, cd, tool_calls, chunks)
                 tool_results.append({"type": "tool_result", "tool_use_id": block.id,
                                      "content": json.dumps(result, ensure_ascii=False)})
+            # 3. feed the tool results back so the model can use them on the next turn
             messages.append({"role": "user", "content": tool_results})
 
         return {"case_id": case["id"], "answer": answer, "tool_calls": tool_calls, "chunks": chunks}
@@ -155,6 +159,8 @@ class LlmAgent(Agent):
         tools, tool_calls, chunks, answer = _openai_tools(), [], [], ""
 
         for _ in range(MAX_TOOL_ITERS):
+            # same loop as the Anthropic path, in OpenAI message shape:
+            # ask → final answer, or run the requested tools and feed the results back
             msg = oai.chat(spec, messages, tools=tools, temperature=0.0, max_tokens=4096)
             tcs = msg.get("tool_calls")
             if not tcs:
@@ -166,7 +172,7 @@ class LlmAgent(Agent):
                 try:
                     args = json.loads(fn.get("arguments") or "{}")
                 except json.JSONDecodeError:
-                    args = {}
+                    args = {}   # malformed arguments → run the tool with defaults, don't crash
                 result = _execute_tool(fn["name"], args, uid, cd, tool_calls, chunks)
                 messages.append({"role": "tool", "tool_call_id": tc["id"],
                                  "content": json.dumps(result, ensure_ascii=False)})

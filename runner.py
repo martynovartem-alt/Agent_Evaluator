@@ -28,6 +28,8 @@ def load_cases(path: str) -> list[dict]:
 
 
 async def evaluate_case(case: dict, trace: dict) -> dict:
+    """The three evaluations of one captured trace, run in parallel:
+    deterministic checks (thread), groundedness judge, resolution judge."""
     checks_result, groundedness_result, resolution_result = await asyncio.gather(
         asyncio.to_thread(run_checks, case, trace),
         judge_groundedness(case, trace),
@@ -58,6 +60,7 @@ async def _process_case(case: dict, traces_dir: Path, sem: asyncio.Semaphore,
 
 
 async def main(dataset_path: str, case_id: str | None = None, limit: int | None = None) -> None:
+    # 1. pick the cases: the whole set, one case (--case-id), or the first N (--limit)
     cases = load_cases(dataset_path)
     if case_id:
         cases = [c for c in cases if c["id"] == case_id]
@@ -67,10 +70,13 @@ async def main(dataset_path: str, case_id: str | None = None, limit: int | None 
     if limit:
         cases = cases[:limit]
 
+    # 2. fresh runs/<timestamp>/ — previous runs are never overwritten
     run_dir = Path("runs") / datetime.now().strftime("%Y%m%dT%H%M%S")
     traces_dir = run_dir / "traces"
     traces_dir.mkdir(parents=True)
 
+    # 3. run + evaluate every case concurrently (bounded by [pipeline].concurrency),
+    #    with a live progress bar on stderr
     sem = asyncio.Semaphore(config.JUDGE_CONCURRENCY)
     bar = progress.ProgressBar(len(cases), label="cases")
     ticker = asyncio.ensure_future(bar.tick())
@@ -82,6 +88,7 @@ async def main(dataset_path: str, case_id: str | None = None, limit: int | None 
         ticker.cancel()
         bar.close()
 
+    # 4. apply the solved policy, write report.json, print the summary + diff vs previous run
     report = aggregate_results(results, run_dir)
     (run_dir / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2))
     print(format_report(report))

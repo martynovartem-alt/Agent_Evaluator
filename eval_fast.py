@@ -190,6 +190,7 @@ def main(dataset_path: str, n: int) -> int:
                      "'agent answer' and 'Is agents answer correct?' (Да/Частично/Нет); "
                      "for .jsonl: human_label must be yes/partial/no")
 
+    # ── smoke: judge the first N dialogues — the only step that touches the API ──
     print(f"judge: {calibrate.judge_banner()}")
     print(f"smoke: {min(n, len(rows))} of {len(rows)} labeled dialogues")
 
@@ -198,6 +199,7 @@ def main(dataset_path: str, n: int) -> int:
         flag = "" if r["failure_reason"] == "none" else f"·{r['failure_reason']}"
         print(f"  {r['id']:>10}  {r['verdict']}{flag}")
 
+    # ── diagnose the judged records: any finding = broken scheme → exit 1 with WHERE/WHAT ──
     findings = SchemeDiagnostician().diagnose(records)
     print(f"elapsed: {elapsed:.0f}s for {len(records)} dialogues | "
           f"full run over {len(rows)} rows: {eta_text(elapsed, len(records), len(rows))}")
