@@ -13,11 +13,11 @@ import oai
 
 def _spec(system_id: str = "", rps: float = 0.0,
           base_url: str = "https://sandbox.test/internal/llm/v1",
-          insecure: bool = False) -> config.AgentSpec:
+          insecure: bool = False, sanitize: bool = False) -> config.AgentSpec:
     return config.AgentSpec(role="resolution", provider="openai", mode="llm",
                             base_url=base_url, api_key="uuid-key",
                             model="test-model", effort="medium", prompt="prompts/resolution.md",
-                            system_id=system_id, rps=rps, insecure=insecure)
+                            system_id=system_id, rps=rps, insecure=insecure, sanitize=sanitize)
 
 
 def _fake_urlopen(captured: list, contexts: list | None = None):
@@ -149,6 +149,62 @@ class TestCertErrorRemediation(unittest.TestCase):
     def test_other_network_failure_keeps_vpn_hint(self):
         e = self._chat_error(urllib.error.URLError(OSError("no route to host")))
         self.assertIn("VPN", e.what_to_do)
+
+
+_DLP_BODY = b'{"status":400,"description":"Personal data is found.","error":"HAS_PERSONAL_DATA"}'
+
+
+def _http_400_dlp(url="https://sandbox.test/x"):
+    return urllib.error.HTTPError(url, 400, "Bad Request", None, io.BytesIO(_DLP_BODY))
+
+
+class TestSanitize(unittest.TestCase):
+    """sanitize = true → outgoing messages are DLP-masked; HAS_PERSONAL_DATA → strict retry."""
+
+    def _sent_bodies(self, side_effects, spec):
+        """Run chat() with urlopen scripted by side_effects; return the request bodies sent."""
+        sent = []
+
+        def fake(req, timeout=None, context=None):
+            sent.append(json.loads(req.data.decode("utf-8")))
+            effect = side_effects[len(sent) - 1]
+            if isinstance(effect, Exception):
+                raise effect
+            body = json.dumps({"choices": [{"message": {"role": "assistant", "content": "ok"}}]})
+            resp = mock.MagicMock()
+            resp.__enter__ = lambda s: s
+            resp.__exit__ = lambda s, *a: False
+            resp.read = lambda: body.encode()
+            return resp
+
+        with mock.patch.object(oai.urllib.request, "urlopen", side_effect=fake):
+            oai.chat(spec, [{"role": "system", "content": "судья"},
+                            {"role": "user", "content": "почта ivan@mail.ru, карта 4276380012345678"}])
+        return sent
+
+    def test_messages_masked_before_send(self):
+        sent = self._sent_bodies([None], _spec(sanitize=True))
+        user = sent[0]["messages"][1]["content"]
+        self.assertNotIn("ivan@mail.ru", user)
+        self.assertNotIn("4276380012345678", user)
+        self.assertEqual(sent[0]["messages"][0]["content"], "судья")  # system verbatim
+
+    def test_personal_data_400_triggers_strict_retry(self):
+        sent = self._sent_bodies([_http_400_dlp(), None], _spec(sanitize=True))
+        self.assertEqual(len(sent), 2)                                # one retry, not more
+        retry_user = sent[1]["messages"][1]["content"]
+        self.assertFalse(any(ch.isdigit() for ch in retry_user))      # strict: digits gone
+
+    def test_strict_rejection_raises_with_dlp_fix(self):
+        with self.assertRaises(errors.ApiError) as cm:
+            self._sent_bodies([_http_400_dlp(), _http_400_dlp()], _spec(sanitize=True))
+        self.assertIn("privacy.py", cm.exception.what_to_do)
+
+    def test_sanitize_off_sends_verbatim_and_never_retries(self):
+        sent = self._sent_bodies([None], _spec(sanitize=False))
+        self.assertIn("ivan@mail.ru", sent[0]["messages"][1]["content"])
+        with self.assertRaises(errors.ApiError):
+            self._sent_bodies([_http_400_dlp()], _spec(sanitize=False))
 
 
 if __name__ == "__main__":

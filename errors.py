@@ -60,8 +60,16 @@ class ApiError(EvalError):
         523: "the model returned an error — retry; if it persists, ask in the AlfaGen Club chat",
     }
 
+    # the Sandbox DLP rejection (400 HAS_PERSONAL_DATA) — detected by body, not status:
+    # reaching this means masking + the strict retry (privacy.py) BOTH failed
+    personal_data_fix = ("the Sandbox DLP still finds personal data after strict masking — "
+                         "check sanitize = true is set for the role in agents.toml, find the "
+                         "trigger in the dialogue text, and extend the patterns in privacy.py")
+
     @classmethod
     def from_http(cls, status: int, body: str, model: str) -> "ApiError":
+        if "HAS_PERSONAL_DATA" in body or "Personal data is found" in body:
+            return cls(f"{model} HTTP {status}: {body[:300]}", cls.personal_data_fix, status=status)
         return cls(f"{model} HTTP {status}: {body[:300]}",
                    cls._FIXES.get(status, cls.default_fix), status=status)
 

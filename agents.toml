@@ -17,6 +17,8 @@
 #   - network: VPN/VDI only — off-network use the offline path (*_MODE=offline) or another endpoint
 #   - TLS: the endpoint cert is self-signed → `insecure = true` per role (curl -k); proper fix,
 #     no code: SSL_CERT_FILE=<bank CA PEM> in .env, then insecure = false
+#   - DLP: requests containing personal data are rejected (400 HAS_PERSONAL_DATA) →
+#     `sanitize = true` masks names/cards/phones via privacy.py, with one strict retry
 # Models available now (A/B via env, e.g. RESOLUTION_MODEL=...):
 #   Qwen/Qwen3.6-35B-A3B-FP8   (newest, recommended judge; multimodal)
 #   Qwen/QwQ-32B               (reasoning)  ·  Qwen/Qwen3-Coder-Next  ·  gpt-oss-120b  ·  /models/llama-3.3
@@ -31,6 +33,7 @@ api_key_env = "SANDBOX_API_KEY"
 system_id = "sanduser"
 rps = 0.2
 insecure = true                    # self-signed Sandbox cert — skip TLS verification (curl -k)
+sanitize = true                    # mask personal data (Sandbox DLP: 400 HAS_PERSONAL_DATA)
 model = "gpt-oss-120b"             # needs MCPClear/getInstruction tool calls — tools are documented
                                    # for QwQ-32B / llama-3.3 / gpt-oss-120b only; if your production
                                    # agent runs Qwen3.6-35B, switch back and verify tool calls work
@@ -45,6 +48,7 @@ api_key_env = "SANDBOX_API_KEY"
 system_id = "sanduser"
 rps = 0.2
 insecure = true                    # self-signed Sandbox cert — skip TLS verification (curl -k)
+sanitize = true                    # mask personal data (Sandbox DLP: 400 HAS_PERSONAL_DATA)
 model = "Qwen/Qwen3.6-35B-A3B-FP8"
 prompt = "prompts/groundedness.md"
 effort = "medium"
@@ -57,6 +61,7 @@ api_key_env = "SANDBOX_API_KEY"
 system_id = "sanduser"
 rps = 0.2
 insecure = true                    # self-signed Sandbox cert — skip TLS verification (curl -k)
+sanitize = true                    # mask personal data (Sandbox DLP: 400 HAS_PERSONAL_DATA)
 model = "Qwen/Qwen3.6-35B-A3B-FP8"
 prompt = "prompts/resolution.md"
 effort = "medium"
@@ -89,6 +94,7 @@ api_key_env = "SANDBOX_API_KEY"
 system_id = "sanduser"
 rps = 0.2
 insecure = true                    # self-signed Sandbox cert — skip TLS verification (curl -k)
+sanitize = true                    # mask personal data (Sandbox DLP: 400 HAS_PERSONAL_DATA)
 model = "Qwen/Qwen3.6-35B-A3B-FP8"
 prompt = "prompts/scope.md"
 effort = "medium"

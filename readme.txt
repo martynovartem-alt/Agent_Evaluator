@@ -72,6 +72,11 @@ AGENT EVALUATOR — ПОШАГОВАЯ ИНСТРУКЦИЯ (RU)          [Engli
                              (аналог curl -k; в поставке уже включено);
                              правильное решение: SSL_CERT_FILE=путь к
                              CA-сертификату банка в .env
+   - 400 HAS_PERSONAL_DATA .. DLP Sandbox нашёл персональные данные —
+                             sanitize = true (включено) маскирует их
+                             (privacy.py) и повторяет запрос строже;
+                             если ошибка осталась — расширьте паттерны
+                             в privacy.py
    - «stub (no LLM)» ....... нет ключа в .env или *_MODE=offline
    - Ошибка 429 ............ превышен лимит 0.2 RPS (проверьте rps=0.2
                              в agents.toml)
@@ -157,6 +162,10 @@ TROUBLESHOOTING
                              self-signed — insecure = true in agents.toml
                              (curl -k equivalent; shipped on); proper fix:
                              SSL_CERT_FILE=path to the bank CA cert in .env
+   - 400 HAS_PERSONAL_DATA .. Sandbox DLP found personal data — sanitize =
+                             true (shipped on) masks it (privacy.py) and
+                             retries once strictly; if it persists, extend
+                             the patterns in privacy.py
    - "stub (no LLM)" ....... no key in .env, or *_MODE=offline
    - Error 429 ............. 0.2 RPS limit exceeded (check rps=0.2
                              in agents.toml)

@@ -83,6 +83,8 @@ class AgentSpec:
     rps: float = 0.0     # endpoint rate limit, requests/sec (Sandbox: 0.2); 0 → unlimited
     insecure: bool = False  # skip TLS verification (curl -k) — the Sandbox cert is self-signed;
                             # proper fix, no code: SSL_CERT_FILE=<bank CA PEM> in .env
+    sanitize: bool = False  # mask personal data before send (privacy.py) — the Sandbox DLP
+                            # rejects requests with names/phones/cards (400 HAS_PERSONAL_DATA)
 
     def prompt_text(self) -> str:
         return _prompt_text(self.prompt)
@@ -116,6 +118,7 @@ def _resolve(role: str, cfg: dict, name: str = "") -> AgentSpec:
         name=name or role,
         system_id=cfg.get("system_id", ""), rps=float(cfg.get("rps", 0) or 0),
         insecure=bool(cfg.get("insecure", False)),
+        sanitize=bool(cfg.get("sanitize", False)),
     )
 
 

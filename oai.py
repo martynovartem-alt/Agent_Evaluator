@@ -29,6 +29,7 @@ import urllib.request
 import uuid
 
 import errors
+import privacy
 
 DEFAULT_BASE_URL = "https://api.openai.com/v1"
 
@@ -73,33 +74,44 @@ class OaiClient:
              response_format: dict | None = None, temperature: float = 0.0,
              max_tokens: int = 1024) -> dict:
         """POST /chat/completions for the role `spec`; returns the assistant message dict."""
-        # 1. build the OpenAI-compatible request body
-        body = {"model": spec.model, "messages": messages,
-                "temperature": temperature, "max_tokens": max_tokens}
-        if tools:
-            body["tools"] = tools
-        if response_format:
-            body["response_format"] = response_format
-        # 2. wait for this endpoint's rate slot (Sandbox: one request per 5 s, shared by
-        #    every role/panelist/thread). Throttle on the normalized endpoint so base_url
-        #    spelling variants (trailing slash) cannot split the schedule and double the RPS.
         endpoint = (spec.base_url or DEFAULT_BASE_URL).rstrip("/")
         url = endpoint + "/chat/completions"
-        wait = self.limiter.reserve(endpoint, getattr(spec, "rps", 0.0), time.monotonic())
-        if wait > 0:
-            time.sleep(wait)
-        # 3. send; every failure becomes a typed error carrying a what-to-do remediation
-        req = urllib.request.Request(url, data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
-                                     headers=self._headers(spec))
-        try:
-            ctx = _INSECURE_CTX if getattr(spec, "insecure", False) else None
-            with urllib.request.urlopen(req, timeout=self.timeout, context=ctx) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-        except urllib.error.HTTPError as e:
-            raise errors.ApiError.from_http(e.code, e.read().decode("utf-8"), spec.model) from e
-        except urllib.error.URLError as e:  # no VPN — or a cert failure, which needs its own fix
-            fix = errors.NetworkError.cert_fix if "CERTIFICATE_VERIFY_FAILED" in str(e.reason) else None
-            raise errors.NetworkError(f"{spec.model} cannot reach {url}: {e.reason}", fix) from e
+        # sanitize on → mask personal data first (the Sandbox DLP rejects it with
+        # 400 HAS_PERSONAL_DATA); if standard masking is still rejected, retry ONCE strict
+        attempts = [False, True] if getattr(spec, "sanitize", False) else [None]
+
+        for strict in attempts:
+            # 1. build the OpenAI-compatible request body (freshly masked per attempt)
+            msgs = messages if strict is None else privacy.mask_messages(messages, strict)
+            body = {"model": spec.model, "messages": msgs,
+                    "temperature": temperature, "max_tokens": max_tokens}
+            if tools:
+                body["tools"] = tools
+            if response_format:
+                body["response_format"] = response_format
+            # 2. wait for this endpoint's rate slot (Sandbox: one request per 5 s, shared by
+            #    every role/panelist/thread; a retry queues like any other request).
+            #    Throttle on the normalized endpoint so base_url spelling variants
+            #    (trailing slash) cannot split the schedule and double the RPS.
+            wait = self.limiter.reserve(endpoint, getattr(spec, "rps", 0.0), time.monotonic())
+            if wait > 0:
+                time.sleep(wait)
+            # 3. send; every failure becomes a typed error carrying a what-to-do remediation
+            req = urllib.request.Request(url, data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+                                         headers=self._headers(spec))  # fresh messageid per attempt
+            try:
+                ctx = _INSECURE_CTX if getattr(spec, "insecure", False) else None
+                with urllib.request.urlopen(req, timeout=self.timeout, context=ctx) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                break
+            except urllib.error.HTTPError as e:
+                body_text = e.read().decode("utf-8")
+                if strict is False and privacy.is_personal_data_error(body_text):
+                    continue    # DLP still triggered → one more attempt with strict masking
+                raise errors.ApiError.from_http(e.code, body_text, spec.model) from e
+            except urllib.error.URLError as e:  # no VPN — or a cert failure, which needs its own fix
+                fix = errors.NetworkError.cert_fix if "CERTIFICATE_VERIFY_FAILED" in str(e.reason) else None
+                raise errors.NetworkError(f"{spec.model} cannot reach {url}: {e.reason}", fix) from e
         # 4. the assistant's reply is choices[0].message — anything else is a shape error
         try:
             return data["choices"][0]["message"]
