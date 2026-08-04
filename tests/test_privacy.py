@@ -23,19 +23,27 @@ class TestMaskStandard(unittest.TestCase):
         self.assertNotIn("4276 3800 1234 5678", s)
         self.assertNotIn("4276-3800-1234-5678", s)
 
-    def test_everything_else_is_verbatim(self):
-        # not in the DLP rules → must reach the judge unchanged
-        text = ("OPERATOR: Вам поможет Анжелика\n"
-                "Здравствуйте, Никита! Ваш e-mail ivan@mail.ru, тел +7 (905) 621-67-53\n"
-                "CVV не называйте. ИНН 1841012345/КПП 184101001, БИК 042202824\n"
-                "списание 299 ₽ 12 июля со счёта 40817810***7020, подписка «Альфа-Смарт»")
-        self.assertEqual(privacy.mask(text), text)
+    def test_names_masked_on_first_attempt(self):
+        # probe evidence (row_27): the DLP runs name NER — vocatives and mid-text uses
+        # included, declensions included
+        s = privacy.mask("Елизавета, средства вам перевёл. Передал Елизавете.\n"
+                         "Вам поможет Валерия. Добрый день, Юлдузхон!")
+        for name in ("Елизавета", "Елизавете", "Валерия", "Юлдузхон"):
+            self.assertNotIn(name, s)
+        self.assertIn("клиент, средства вам перевёл", s)
 
-    def test_short_and_masked_numbers_survive(self):
-        s = privacy.mask("код подтверждения 123456, сумма 10 638 ₽, счёт 40817810***7020")
-        self.assertIn("123456", s)
-        self.assertIn("10 638", s)
-        self.assertIn("40817810***7020", s)
+    def test_starred_account_tail_masked(self):
+        s = privacy.mask("перевести на счёт *6966? карта **1234, счёт 40817810***7020")
+        for tail in ("*6966", "**1234", "***7020"):
+            self.assertNotIn(tail, s)
+        self.assertIn("40817810***", s)              # visible prefix survives
+
+    def test_non_name_words_and_service_data_verbatim(self):
+        # everything that is NOT a name/card/account must reach the judge unchanged
+        text = ("Юрист банка ответил. Ваш e-mail ivan@mail.ru, тел +7 (905) 621-67-53\n"
+                "CVV не называйте. ИНН 1841012345/КПП 184101001, БИК 042202824\n"
+                "списание 299 ₽ 12 июля, подписка «Альфа-Смарт», код 123456, сумма 10 638 ₽")
+        self.assertEqual(privacy.mask(text), text)
 
 
 class TestMaskStrict(unittest.TestCase):

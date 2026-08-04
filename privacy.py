@@ -41,10 +41,47 @@ _LONG_DIGITS = re.compile(r"\b\d{9,}\b")
 _PHONE = re.compile(r"(?:\+7|\b8)[\s()\-]*\d{3}[\s()\-]*\d{3}[\s\-]*\d{2}[\s\-]*\d{2}\b")
 _ANY_DIGIT = re.compile(r"\d")
 
-# First names in the dialogue frames the transcripts actually use — the Sandbox DLP flags
-# them even when every digit is already masked (this was the residual HAS_PERSONAL_DATA
-# cause). A general name NER is impossible in regex, so only frame-anchored capitalized
-# words are replaced, with a readable neutral noun; «Альфа…» (bot/brand) is excluded.
+# Russian first names — the DLP probe proved the Sandbox runs name NER (row_27's minimal
+# triggering fragment held only names + a starred account tail, zero card/account numbers),
+# so names must go on the FIRST attempt. Two tiers: stems (≥4 chars, declension suffix up
+# to 3 letters — Елизавет→Елизавете) and exact short forms (declensions enumerated, so
+# «Инна» can never collide with «ИНН», «Лена» with «Лента»). Capital-letter anchored:
+# lowercase words never match. Replacement is a readable «клиент».
+_NAME_STEMS = (
+    "Александр Алексе Анастаси Ангелин Андре Анжелик Антон Антонин Аркади Арсени Артём "
+    "Артем Артур Богдан Борис Вадим Валентин Валери Варвар Васили Вероник Виктор Виктори "
+    "Витали Владимир Владислав Вячеслав Галин Геннади Георги Герман Григори Даниил Данил "
+    "Дарь Денис Диан Дмитри Евгени Екатерин Елен Елизавет Жанн Зинаид Игор Ирин Карин "
+    "Кирилл Константин Кристин Ксени Ларис Леонид Лиди Людмил Макар Максим Маргарит Марин "
+    "Матве Михаил Надежд Натал Никит Никола Оксан Олег Ольг Павел Павл Полин Раис Регин "
+    "Роман Руслан Светлан Святослав Семён Семен Серге Станислав Степан Тамар Татьян Тимофе "
+    "Тимур Ульян Фёдор Федор Эдуард Юлдузхон Ярослав Наташ Насть Кать"
+).split()   # NB: no «Юри» stem — it would match «Юрист»; Юрий lives in the exact forms
+_NAME_EXACT = (
+    "Анна Анны Анне Анну Анной Инна Инны Инне Инну Инной Вера Веры Вере Веру Верой "
+    "Мария Марии Марию Марией Марья Марьи Марье Юлия Юлии Юлию Юлией Юля Юли Юле Юлю Юлей "
+    "Софья Софьи Софье Софью Софии София Илья Ильи Илье Илью Ильёй Ильей Пётр Петра Петру "
+    "Петром Петре Лев Льва Льву Львом Льве Зоя Зои Зое Зою Зоей Яна Яны Яне Яну Яной "
+    "Нина Нины Нине Нину Ниной Алла Аллы Алле Аллу Аллой Кира Киры Кире Киру Кирой "
+    "Алина Алины Алине Алину Алиной Алиса Алисы Алисе Алису Алисой Егор Егора Егору Егором "
+    "Иван Ивана Ивану Иваном Марк Марка Марку Марком Глеб Глеба Глебу Глебом "
+    "Лена Лены Лене Лену Леной Дима Димы Диме Диму Димой Саша Саши Саше Сашу Сашей "
+    "Маша Маши Маше Машу Машей Даша Даши Даше Дашу Дашей Оля Оли Оле Олю Олей "
+    "Таня Тани Тане Таню Таней Ваня Вани Ване Ваню Ваней Женя Жени Жене Женю Женей "
+    "Света Светы Свете Свету Светой Ира Иры Ире Иру Ирой Люба Любы Любе Любу Любой "
+    "Надя Нади Наде Надю Надей Катя Кати Кате Катю Катей Настя Насти Насте Настю Настей "
+    "Миша Миши Мише Мишу Мишей Паша Паши Паше Пашу Пашей Коля Коли Коле Колю Колей "
+    "Любовь Любови Любовью Юрий Юрия Юрию Юрием Юрии"
+).split()
+_NAME_DICT = re.compile(
+    r"\b(?:(?:" + "|".join(sorted(_NAME_EXACT, key=len, reverse=True)) + r")|(?:"
+    + "|".join(sorted(_NAME_STEMS, key=len, reverse=True)) + r")[а-яё]{0,3})\b")
+
+# starred account/card tails («счёт *6966», «карта **1234») — within the documented rules
+_STARRED_TAIL = re.compile(r"([*•]+\s?)\d{2,6}\b")
+
+# Name frames — catch non-dictionary names (rare/foreign) in the positions the transcripts
+# use. A general NER is impossible in regex; «Альфа…» (bot/brand) is excluded.
 _NAME = r"(?!Альфа)[А-ЯЁ][а-яё]{2,}(?:\s+(?!Альфа)[А-ЯЁ][а-яё]{2,})?"
 _STAFF_NAME = re.compile(
     rf"((?:Вам\s+поможет|поможет\s+вам|С\s+вами|Меня\s+зовут|На\s+связи|оператор|специалист)[,!]?\s+){_NAME}")
@@ -99,21 +136,26 @@ _CARD_GROUPED = re.compile(r"\b\d{4}(?:[ \-]\d{4}){3}(?:[ \-]\d{1,3})?\b")
 
 
 def mask(text: str, strict: bool = False) -> str:
-    """Standard pass = exactly the documented DLP rules (card/account numbers), keeping the
-    judged text otherwise VERBATIM. Strict pass (the automatic retry) = the full arsenal —
-    names, phones, requisites, org identities, every digit — in case the rules are
-    incomplete in practice; it is only ever seen by rows the standard pass could not save."""
+    """Standard pass = what the DLP verifiably flags (probe evidence): card/account numbers,
+    starred account tails, and PERSON NAMES — the Sandbox runs name NER despite the
+    "accounts and cards only" description. Everything else stays verbatim. Strict pass
+    (the automatic retry) = the full arsenal — emails, phones, requisites, org identities,
+    every digit — for whatever the standard pass still misses."""
     safe = str(text)
     safe = _CARD_GROUPED.sub(_x_digits, safe)
     safe = _CARD_OR_ACCOUNT.sub(_x_digits, safe)
+    safe = _STARRED_TAIL.sub(lambda m: m.group(1) + "x" * 4, safe)
+    # frames first (they know staff from client), then the dictionary for bare vocatives
+    # and mid-text uses; frames also catch non-dictionary names (rare/foreign)
+    safe = _STAFF_NAME.sub(r"\1специалист", safe)
+    safe = _CLIENT_NAME.sub(r"\1клиент", safe)
+    safe = _NAME_DICT.sub("клиент", safe)
     if not strict:
         return safe
     safe = _EMAIL.sub("email", safe)
     safe = _URL.sub("url", safe)
     safe = _CARDHOLDER.sub(lambda m: m.group(0).lower(), safe)
     safe = _CARDHOLDER_RU.sub(lambda m: m.group(0).lower(), safe)
-    safe = _STAFF_NAME.sub(r"\1специалист", safe)
-    safe = _CLIENT_NAME.sub(r"\1клиент", safe)
     for pattern, replacement in _WORD_MASKS:
         safe = pattern.sub(replacement, safe)
     safe = _CARD_EXPIRY.sub("xx/xx", safe)
