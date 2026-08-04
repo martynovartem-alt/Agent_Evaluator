@@ -36,9 +36,10 @@ _CARDHOLDER_RU = re.compile(r"\b[А-ЯЁ'\-]{2,26} [А-ЯЁ'\-]{1,26}\b")  # И�
                                                                      # are Russian — source only
                                                                      # covered the latin card form)
 _CARD_EXPIRY = re.compile(r"\b(?:0[1-9]|1[0-2])/\d{2}\b")
-# 10–19 consecutive digits: cards/accounts, and the ARN/RRN reference numbers (12 digits)
-# and phone runs (10–11) that the source's 13+ threshold let through
-_LONG_DIGITS = re.compile(r"\b\d{10,19}\b")
+# 9+ consecutive digits: КПП/БИК (9), ИНН (10/12), phones (10–11), СНИЛС (11), ARN/RRN (12),
+# cards (16–19), р/с and к/с settlement accounts (20). No upper bound — the earlier 10–19
+# cap was a bug: a 20-digit account run matched nothing at all and sailed through.
+_LONG_DIGITS = re.compile(r"\b\d{9,}\b")
 _PHONE = re.compile(r"(?:\+7|\b8)[\s()\-]*\d{3}[\s()\-]*\d{3}[\s\-]*\d{2}[\s\-]*\d{2}\b")
 _ANY_DIGIT = re.compile(r"\d")
 
@@ -78,6 +79,12 @@ _STRICT_MASKS = [
     (re.compile(r"\bзадолженн\w*\b", re.I), "долг"),
     (re.compile(r"\bпросроч\w*\b", re.I), "просрочка"),
     (re.compile(r"\bстраховк\w*\b", re.I), "дополнительная услуга"),
+    # organization identities from pasted payment requisites (СНТ «Север» case) — anchored
+    # on the org-type word, so product names like «Альфа-Смарт» are never touched
+    (re.compile(r"(?:ООО|АО|ПАО|ЗАО|ИП|СНТ|ТСЖ|ДНТ|товариществ\w*|фонд)\s*[«\"][^«»\"\n]{1,40}[»\"]", re.I),
+     "организация"),
+    (re.compile(r"\b(?:СНТ|ТСЖ|ДНТ)\s+[А-ЯЁ][а-яё]+", re.I), "организация"),
+    (re.compile(r"\bФилиал\s*[«\"][^«»\"\n]{1,40}[»\"]", re.I), "филиал банка"),
 ]
 
 

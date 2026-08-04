@@ -39,6 +39,28 @@ class TestMaskStandard(unittest.TestCase):
         self.assertNotIn("469900613383", s)          # 12-digit ARN/RRN
         self.assertNotIn("621-67-53", s)             # formatted phone
 
+    def test_payment_requisites_masked(self):
+        # the СНТ requisites paste that kept failing: 9-digit КПП/БИК and 20-digit accounts
+        s = privacy.mask("ИНН 1841012345/КПП 184101001\n"
+                         "р/с 40703810529100000006, БИК 042202824, к/с №30101810200000000824")
+        for number in ("1841012345", "184101001", "40703810529100000006",
+                       "042202824", "30101810200000000824"):
+            self.assertNotIn(number, s)
+
+
+class TestMaskStrictOrgs(unittest.TestCase):
+    def test_org_identities_masked_in_strict(self):
+        s = privacy.mask('СНТ Север, ТОВАРИЩЕСТВО "СЕВЕР", АО «АЛЬФА-БАНК», '
+                         'Филиал «Нижегородский»', strict=True)
+        for org in ("Север", "СЕВЕР", "АЛЬФА-БАНК", "Нижегородский"):
+            self.assertNotIn(org, s)
+        self.assertIn("организация", s)
+
+    def test_product_names_survive_strict(self):
+        # org masking is anchored on org-type words — subscriptions stay recognizable
+        s = privacy.mask("подписка «Альфа-Смарт» за 299 ₽", strict=True)
+        self.assertIn("Альфа-Смарт", s)
+
     def test_amounts_dates_and_masked_accounts_survive(self):
         # the judge needs amounts/dates; short digit runs and pre-masked accounts stay
         s = privacy.mask("списание 299 ₽ 12 июля со счёта 40817810***7020")
