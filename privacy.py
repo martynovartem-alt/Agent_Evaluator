@@ -134,13 +134,25 @@ if __name__ == "__main__":
     args = p.parse_args()
     if args.row:
         import dataset
-        recs = {r["id"]: r for r in dataset.parse_xlsx(args.dataset)}
+        # status on stderr so the script never looks frozen (the parse takes a moment)
+        print(f"reading {args.dataset} ...", file=sys.stderr, flush=True)
+        try:
+            recs = {r["id"]: r for r in dataset.parse_xlsx(args.dataset)}
+        except FileNotFoundError:
+            sys.exit(f"file not found: {args.dataset} — point --dataset at the assessors' xlsx")
+        print(f"parsed {len(recs)} rows, showing {args.row}", file=sys.stderr, flush=True)
         if args.row not in recs:
-            sys.exit(f"{args.row} not found in {args.dataset}")
+            sys.exit(f"{args.row} not found in {args.dataset} (ids are row_1..row_{len(recs)})")
         r = recs[args.row]
         # the same three fields the resolution judge sends for this row
         raw = "\n".join((r["dialogue"], r["agent_answer"], r["operator_answer"]))
     else:
+        if sys.stdin.isatty():
+            # no --row and no piped input: say we are WAITING, or the user stares at nothing
+            print("no --row given — waiting for dialogue text on stdin:\n"
+                  "  paste the text, then press Ctrl-D to finish;\n"
+                  "  or press Ctrl-C and run:  python3 privacy.py --row row_5",
+                  file=sys.stderr, flush=True)
         raw = sys.stdin.read()
     print("── standard mask (attempt 1) ──")
     print(mask(raw))
