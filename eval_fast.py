@@ -99,7 +99,8 @@ class SchemeDiagnostician:
     def print_findings(findings: list[Finding], total: int) -> None:
         print("diagnosis — where is the problem and what to do:")
         for f in findings:
-            print(f"  [{_WHERE_LABELS.get(f.where, f.where)}] {len(f.rows)}/{total} dialogues")
+            rows = ", ".join(f.rows[:8]) + (f" (+{len(f.rows) - 8} more)" if len(f.rows) > 8 else "")
+            print(f"  [{_WHERE_LABELS.get(f.where, f.where)}] {len(f.rows)}/{total} dialogues: {rows}")
             print(f"    problem:    {f.problem[:200]}")
             print(f"    what to do: {f.what_to_do}")
 

@@ -125,9 +125,24 @@ def is_personal_data_error(text: str) -> bool:
 
 
 if __name__ == "__main__":
+    import argparse
     import sys
-    raw = sys.stdin.read()
+
+    p = argparse.ArgumentParser(description="Show what the masking would send to the Sandbox")
+    p.add_argument("--row", help="row id from the diagnosis (e.g. row_5) — reads it from --dataset")
+    p.add_argument("--dataset", default="Agents-new-answers(after_20_07_2026).xlsx")
+    args = p.parse_args()
+    if args.row:
+        import dataset
+        recs = {r["id"]: r for r in dataset.parse_xlsx(args.dataset)}
+        if args.row not in recs:
+            sys.exit(f"{args.row} not found in {args.dataset}")
+        r = recs[args.row]
+        # the same three fields the resolution judge sends for this row
+        raw = "\n".join((r["dialogue"], r["agent_answer"], r["operator_answer"]))
+    else:
+        raw = sys.stdin.read()
     print("── standard mask (attempt 1) ──")
     print(mask(raw))
-    print("── strict mask (retry) ──")
+    print("\n── strict mask (retry) ──")
     print(mask(raw, strict=True))
