@@ -73,9 +73,10 @@ _NAME_EXACT = (
     "Миша Миши Мише Мишу Мишей Паша Паши Паше Пашу Пашей Коля Коли Коле Колю Колей "
     "Любовь Любови Любовью Юрий Юрия Юрию Юрием Юрии"
 ).split()
+# (?!…) guards: capitalized common words that a stem+declension would swallow
 _NAME_DICT = re.compile(
-    r"\b(?:(?:" + "|".join(sorted(_NAME_EXACT, key=len, reverse=True)) + r")|(?:"
-    + "|".join(sorted(_NAME_STEMS, key=len, reverse=True)) + r")[а-яё]{0,3})\b")
+    r"\b(?!Максимум|Романти)(?:(?:" + "|".join(sorted(_NAME_EXACT, key=len, reverse=True))
+    + r")|(?:" + "|".join(sorted(_NAME_STEMS, key=len, reverse=True)) + r")[а-яё]{0,3})\b")
 
 # starred account/card tails («счёт *6966», «карта **1234») — within the documented rules
 _STARRED_TAIL = re.compile(r"([*•]+\s?)\d{2,6}\b")

@@ -40,7 +40,7 @@ class TestMaskStandard(unittest.TestCase):
 
     def test_non_name_words_and_service_data_verbatim(self):
         # everything that is NOT a name/card/account must reach the judge unchanged
-        text = ("Юрист банка ответил. Ваш e-mail ivan@mail.ru, тел +7 (905) 621-67-53\n"
+        text = ("Юрист банка ответил. Максимум 3 дня. Ваш e-mail ivan@mail.ru, тел +7 (905) 621-67-53\n"
                 "CVV не называйте. ИНН 1841012345/КПП 184101001, БИК 042202824\n"
                 "списание 299 ₽ 12 июля, подписка «Альфа-Смарт», код 123456, сумма 10 638 ₽")
         self.assertEqual(privacy.mask(text), text)
