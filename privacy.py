@@ -17,8 +17,14 @@ Ported from the colleague's analytics_tool package (llm.py), adapted for this re
 Wiring: per-role `sanitize = true` in agents.toml (shipped on for Sandbox roles) makes
 oai.py mask every request and retry once with strict=True on a DLP rejection.
 
-Deviation from the source: whitespace is collapsed per line, newlines are kept — the
-judged dialogues are multiline CLIENT/OPERATOR transcripts and must stay readable.
+Deviations from the source: whitespace is collapsed per line but newlines are kept (the
+judged dialogues are multiline CLIENT/OPERATOR transcripts); first names in dialogue
+frames («Вам поможет Анжелика», «Здравствуйте, Никита») are replaced — they were the
+residual DLP trigger the digit masking could not fix; the long-digit threshold is 10+
+(ARN/RRN references are 12 digits); formatted phone numbers are masked.
+
+Debug a stubborn row on the bank machine:  python3 privacy.py < dialogue.txt
+prints the standard- and strict-masked variants that would be sent.
 """
 import re
 
@@ -30,8 +36,21 @@ _CARDHOLDER_RU = re.compile(r"\b[А-ЯЁ'\-]{2,26} [А-ЯЁ'\-]{1,26}\b")  # И�
                                                                      # are Russian — source only
                                                                      # covered the latin card form)
 _CARD_EXPIRY = re.compile(r"\b(?:0[1-9]|1[0-2])/\d{2}\b")
-_LONG_DIGITS = re.compile(r"\b\d{13,19}\b")                       # card / account numbers
+# 10–19 consecutive digits: cards/accounts, and the ARN/RRN reference numbers (12 digits)
+# and phone runs (10–11) that the source's 13+ threshold let through
+_LONG_DIGITS = re.compile(r"\b\d{10,19}\b")
+_PHONE = re.compile(r"(?:\+7|\b8)[\s()\-]*\d{3}[\s()\-]*\d{3}[\s\-]*\d{2}[\s\-]*\d{2}\b")
 _ANY_DIGIT = re.compile(r"\d")
+
+# First names in the dialogue frames the transcripts actually use — the Sandbox DLP flags
+# them even when every digit is already masked (this was the residual HAS_PERSONAL_DATA
+# cause). A general name NER is impossible in regex, so only frame-anchored capitalized
+# words are replaced, with a readable neutral noun; «Альфа…» (bot/brand) is excluded.
+_NAME = r"(?!Альфа)[А-ЯЁ][а-яё]{2,}(?:\s+(?!Альфа)[А-ЯЁ][а-яё]{2,})?"
+_STAFF_NAME = re.compile(
+    rf"((?:Вам\s+поможет|поможет\s+вам|С\s+вами|Меня\s+зовут|На\s+связи|оператор|специалист)[,!]?\s+){_NAME}")
+_CLIENT_NAME = re.compile(
+    rf"((?:Здравствуйте|Приветствую|Добрый\s+день|Добрый\s+вечер|Доброе\s+утро|Спасибо)[,!]?\s+){_NAME}")
 
 # (pattern, replacement) applied in order; case-insensitive
 _WORD_MASKS = [
@@ -73,9 +92,12 @@ def mask(text: str, strict: bool = False) -> str:
     safe = _URL.sub("url", safe)
     safe = _CARDHOLDER.sub(lambda m: m.group(0).lower(), safe)
     safe = _CARDHOLDER_RU.sub(lambda m: m.group(0).lower(), safe)
+    safe = _STAFF_NAME.sub(r"\1специалист", safe)
+    safe = _CLIENT_NAME.sub(r"\1клиент", safe)
     for pattern, replacement in _WORD_MASKS:
         safe = pattern.sub(replacement, safe)
     safe = _CARD_EXPIRY.sub("xx/xx", safe)
+    safe = _PHONE.sub(_x_digits, safe)
     safe = _LONG_DIGITS.sub(_x_digits, safe)
     if strict:
         safe = _ANY_DIGIT.sub("x", safe)
@@ -100,3 +122,12 @@ def mask_messages(messages: list[dict], strict: bool = False) -> list[dict]:
 def is_personal_data_error(text: str) -> bool:
     low = str(text).lower()
     return "has_personal_data" in low or "personal data is found" in low
+
+
+if __name__ == "__main__":
+    import sys
+    raw = sys.stdin.read()
+    print("── standard mask (attempt 1) ──")
+    print(mask(raw))
+    print("── strict mask (retry) ──")
+    print(mask(raw, strict=True))

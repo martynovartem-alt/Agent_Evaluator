@@ -24,6 +24,21 @@ class TestMaskStandard(unittest.TestCase):
         self.assertNotIn("IVAN PETROV", privacy.mask("на карте IVAN PETROV"))
         self.assertNotIn("ИВАН ПЕТРОВ", privacy.mask("клиент ИВАН ПЕТРОВ"))
 
+    def test_dialogue_frame_names_replaced(self):
+        # the residual DLP trigger: first names in the transcripts' fixed frames
+        s = privacy.mask("OPERATOR: Вам поможет Анжелика\nOPERATOR: Здравствуйте, Никита!\n"
+                         "BOT: Приветствую, Елена Петрова! На связи Альфа-Помощник")
+        for name in ("Анжелика", "Никита", "Елена", "Петрова"):
+            self.assertNotIn(name, s)
+        self.assertIn("Вам поможет специалист", s)
+        self.assertIn("Здравствуйте, клиент", s)
+        self.assertIn("Альфа-Помощник", s)           # bot/brand names survive
+
+    def test_reference_numbers_and_phones_masked(self):
+        s = privacy.mask("ARN операции - 469900613383, звоните +7 (905) 621-67-53")
+        self.assertNotIn("469900613383", s)          # 12-digit ARN/RRN
+        self.assertNotIn("621-67-53", s)             # formatted phone
+
     def test_amounts_dates_and_masked_accounts_survive(self):
         # the judge needs amounts/dates; short digit runs and pre-masked accounts stay
         s = privacy.mask("списание 299 ₽ 12 июля со счёта 40817810***7020")
