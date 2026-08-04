@@ -2,8 +2,8 @@
 Fast scheme check (preflight) — run this BEFORE a long eval to catch a broken setup in
 minutes, not hours (the Sandbox rate limit is 0.2 RPS, so a full run is expensive).
 
-Sends N dialogues (default 10) from the labeled set through the resolution judge and
-validates the *scheme*, not the quality:
+Sends N random dialogues (default 20) from the labeled set through the resolution judge
+and validates the *scheme*, not the quality:
   - every row returns verdict ∈ yes/partial/no and failure_reason ∈ the taxonomy
   - verdict and failure_reason are consistent (yes ↔ none)
   - no "[judge error: ...]" rows (endpoint/auth/schema problems surface here)
@@ -18,15 +18,19 @@ Accepts .jsonl (dataset.py output) or .xlsx directly — an xlsx is converted to
 jsonl OUTSIDE the repo, so real customer data cannot end up in git.
 
 Exit code 0 = scheme OK, safe to launch eval_full.py; 1 = scheme broken (details printed).
+Failing rows are additionally saved to runs/smoke_errors_<ts>.log — the error next to the
+full judged texts (dialogue, agent answer, operator answer), ready for privacy.py debugging.
 """
 import argparse
 import asyncio
 import json
+import random
 import sys
 import tempfile
 import time
 import zipfile
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 import calibrate
@@ -36,7 +40,7 @@ import progress
 from errors import ConfigError, DatasetError, LlmOutputError
 from judges.resolution import FAILURE_REASONS
 
-SMOKE_N = 10
+SMOKE_N = 20
 
 _WHERE_LABELS = {"dataset": "DATASET", "config": "CONFIG",
                  "api": "API / NETWORK", "llm_output": "LLM OUTPUT"}
@@ -139,10 +143,39 @@ def validate(records: list[dict]) -> list[str]:
             for f in SchemeDiagnostician().diagnose(records) for rid in f.rows]
 
 
+def sample_rows(rows: list[dict], n: int) -> list[dict]:
+    """n random rows in dataset order (a fresh sample each run probes different dialogues —
+    scattered problems like DLP triggers surface faster than with a fixed prefix)."""
+    if len(rows) <= n:
+        return list(rows)
+    return [rows[i] for i in sorted(random.sample(range(len(rows)), n))]
+
+
+def write_error_log(findings: list[Finding], records: list[dict],
+                    path: Path | None = None) -> Path:
+    """One block per failing row: the diagnosis next to the full judged texts, so the row
+    can be reproduced immediately (privacy.py --row <id>). runs/ is gitignored — real
+    dialogue text never lands in git."""
+    by_id = {r["id"]: r for r in records}
+    path = path or Path("runs") / f"smoke_errors_{datetime.now():%Y%m%dT%H%M%S}.log"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
+        for finding in findings:
+            for rid in finding.rows:
+                r = by_id.get(rid, {})
+                f.write(f"{'=' * 72}\nrow: {rid}\n"
+                        f"problem:    {finding.problem}\n"
+                        f"what to do: {finding.what_to_do}\n"
+                        f"--- dialogue ---\n{r.get('dialogue', '')}\n"
+                        f"--- agent answer ---\n{r.get('agent_answer', '')}\n"
+                        f"--- operator answer ---\n{r.get('operator_answer', '')}\n\n")
+    return path
+
+
 async def run_smoke(rows: list[dict], n: int) -> tuple[list[dict], float]:
-    """Judge the first n rows (concurrency-bounded like calibrate); return (records, seconds)."""
+    """Judge n random rows (concurrency-bounded like calibrate); return (records, seconds)."""
     sem = asyncio.Semaphore(config.JUDGE_CONCURRENCY)
-    todo = rows[:n]
+    todo = sample_rows(rows, n)
     bar = progress.ProgressBar(len(todo), label="smoke")
 
     async def scored(row):
@@ -191,9 +224,9 @@ def main(dataset_path: str, n: int) -> int:
                      "'agent answer' and 'Is agents answer correct?' (Да/Частично/Нет); "
                      "for .jsonl: human_label must be yes/partial/no")
 
-    # ── smoke: judge the first N dialogues — the only step that touches the API ──
+    # ── smoke: judge N random dialogues — the only step that touches the API ──
     print(f"judge: {calibrate.judge_banner()}")
-    print(f"smoke: {min(n, len(rows))} of {len(rows)} labeled dialogues")
+    print(f"smoke: {min(n, len(rows))} random of {len(rows)} labeled dialogues")
 
     records, elapsed = asyncio.run(run_smoke(rows, n))
     for r in records:
@@ -208,6 +241,8 @@ def main(dataset_path: str, n: int) -> int:
         n_problems = sum(len(f.rows) for f in findings)
         print(f"SCHEME FAILED ({n_problems} problem(s) in {len(records)} dialogues)")
         SchemeDiagnostician.print_findings(findings, len(records))
+        log_path = write_error_log(findings, records)
+        print(f"failing rows saved with their dialogues → {log_path}")
         return 1
     print("SCHEME OK — safe to run the full eval (python3 eval_full.py)")
     return 0
@@ -217,6 +252,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Fast scheme check before a full eval")
     parser.add_argument("--dataset", default="data/labeled.jsonl",
                         help="labeled .jsonl, or the source .xlsx (auto-converted to a temp file)")
-    parser.add_argument("--n", type=int, default=SMOKE_N, help="dialogues to check (default 10)")
+    parser.add_argument("--n", type=int, default=SMOKE_N,
+                        help="random dialogues to check (default 20)")
     args = parser.parse_args()
     sys.exit(main(args.dataset, args.n))

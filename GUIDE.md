@@ -212,7 +212,7 @@ python3 calibrate.py --dataset data/labeled.jsonl
 ```
 
 At the Sandbox 0.2 RPS limit a full run takes hours, so use the two-step flow: **preflight,
-then full**. `eval_fast.py` judges 10 dialogues and validates the *scheme* (valid
+then full**. `eval_fast.py` judges 20 random dialogues and validates the *scheme* (valid
 verdicts/failure reasons, no judge errors, live LLM — not the stub), prints an ETA for the
 full set, and exits 0/1. `eval_full.py` runs the same preflight first and aborts if it
 fails. Both accept the `.xlsx` directly (converted to a temp jsonl outside the repo):

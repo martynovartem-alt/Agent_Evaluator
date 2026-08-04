@@ -22,7 +22,8 @@ AGENT EVALUATOR — ПОШАГОВАЯ ИНСТРУКЦИЯ (RU)          [Engli
    cp .env.example .env
    В .env вписать:  SANDBOX_API_KEY=<ваш UUID-ключ>
 
-ШАГ 3. Быстрая проверка схемы (~1 минута, 10 диалогов)
+ШАГ 3. Быстрая проверка схемы (20 случайных диалогов; строки с
+        ошибками вместе с диалогами пишутся в runs/smoke_errors_*.log)
    python3 eval_fast.py --dataset "Agents-new-answers(after_20_07_2026).xlsx"
    - Печатает вердикты, причины ошибок и ETA полного прогона.
    - «SCHEME OK» (exit 0)  -> можно запускать полный прогон.
@@ -112,7 +113,8 @@ STEP 2. Install and configure
    cp .env.example .env
    In .env set:  SANDBOX_API_KEY=<your UUID key>
 
-STEP 3. Fast scheme check (~1 minute, 10 dialogues)
+STEP 3. Fast scheme check (20 random dialogues; failing rows with
+        their dialogues are written to runs/smoke_errors_*.log)
    python3 eval_fast.py --dataset "Agents-new-answers(after_20_07_2026).xlsx"
    - Prints verdicts, failure reasons and the full-run ETA.
    - "SCHEME OK" (exit 0)  -> safe to launch the full run.

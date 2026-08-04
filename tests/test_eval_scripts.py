@@ -97,6 +97,32 @@ class TestDiagnostician(unittest.TestCase):
             self.assertEqual(eval_fast.main(str(bad), 2), 1)              # malformed → exit 1
 
 
+class TestSampleAndErrorLog(unittest.TestCase):
+    def test_sample_keeps_dataset_order_and_size(self):
+        rows = [{"id": f"r{i}"} for i in range(50)]
+        picked = eval_fast.sample_rows(rows, 20)
+        self.assertEqual(len(picked), 20)
+        idx = [int(r["id"][1:]) for r in picked]
+        self.assertEqual(idx, sorted(idx))            # dataset order preserved
+        self.assertEqual(len({r["id"] for r in picked}), 20)   # no duplicates
+
+    def test_small_set_passes_through(self):
+        rows = [{"id": "a"}, {"id": "b"}]
+        self.assertEqual(eval_fast.sample_rows(rows, 20), rows)
+
+    def test_error_log_carries_dialogue_and_error(self):
+        records = [{"id": "row_7", "dialogue": "CLIENT: где мои деньги",
+                    "agent_answer": "final_answer: ...", "operator_answer": "оператор ответил"}]
+        findings = [eval_fast.Finding("api", "HTTP 400 HAS_PERSONAL_DATA",
+                                      "extend privacy.py", ["row_7"])]
+        with tempfile.TemporaryDirectory() as d:
+            path = eval_fast.write_error_log(findings, records, Path(d) / "errors.log")
+            text = path.read_text()
+        for expected in ("row_7", "HTTP 400 HAS_PERSONAL_DATA", "extend privacy.py",
+                         "где мои деньги", "final_answer", "оператор ответил"):
+            self.assertIn(expected, text)
+
+
 class TestRunSmoke(unittest.TestCase):
     def test_records_flow_through_score_row(self):
         async def fake_judge(case, trace):

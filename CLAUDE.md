@@ -25,7 +25,8 @@ python3 -m unittest tests.test_checks.TestToolsOk   # single class
 python3 dataset.py current_agent_answers.xlsx data/labeled.jsonl   # real data → jsonl (both gitignored)
 python3 calibrate.py --dataset data/labeled.jsonl                  # or data/labeled_sample.jsonl
 
-# Fast scheme preflight (10 dialogues, exit 0/1) and full eval (preflight → all rows).
+# Fast scheme preflight (20 random dialogues, exit 0/1; failing rows + dialogues →
+# runs/smoke_errors_<ts>.log) and full eval (preflight → all rows).
 # Both accept the .xlsx directly (auto-converted to a temp jsonl OUTSIDE the repo).
 python3 eval_fast.py --dataset data/labeled.jsonl
 python3 eval_full.py --dataset "Agents-new-answers(after_20_07_2026).xlsx"

@@ -26,7 +26,7 @@ def main() -> int:
     parser.add_argument("--dataset", default="data/labeled.jsonl",
                         help="labeled .jsonl, or the source .xlsx (auto-converted to a temp file)")
     parser.add_argument("--n", type=int, default=eval_fast.SMOKE_N,
-                        help="dialogues in the preflight (default 10)")
+                        help="random dialogues in the preflight (default 20)")
     parser.add_argument("--skip-smoke", action="store_true", help="skip the preflight")
     parser.add_argument("--csv", default=None, help="CSV path (default: runs/<ts>/disagreements.csv)")
     parser.add_argument("--all-rows", action="store_true", help="write every row to the CSV")
