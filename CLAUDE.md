@@ -40,9 +40,11 @@ a fresh unique `messageid` per request) and `rps` (endpoint rate limit; Sandbox 
 enforced by a shared per-endpoint throttle in `oai.py`). TLS: the Sandbox cert is self-signed —
 per-role `insecure = true` (curl `-k`, shipped on for the Sandbox sections; provider="openai"
 roles only); the proper fix needs no code: `SSL_CERT_FILE=<bank CA PEM>` in `.env`.
-DLP: the Sandbox rejects requests with personal data (400 HAS_PERSONAL_DATA) — per-role
-`sanitize = true` (shipped on) masks names/cards/emails via `privacy.py` before send, with one
-automatic strict retry; `system` messages are never masked (verbatim agent prompt).
+DLP: the Sandbox rejects requests with personal data (400 HAS_PERSONAL_DATA); its rules check
+only bank account and card numbers — per-role `sanitize = true` (shipped on) masks exactly
+those via `privacy.py` (all other text goes verbatim), with one automatic strict retry
+(full masking: names/phones/requisites/all digits) if the DLP still objects; `system`
+messages are never masked (verbatim agent prompt).
 Sandbox is VPN/VDI-only; tools
 (function calling) are documented only for QwQ-32B / llama-3.3 / gpt-oss-120b, so `[agent]`
 must use one of those. Three roles:

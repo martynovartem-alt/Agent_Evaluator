@@ -1,29 +1,27 @@
 """
 DLP masking for the Sandbox API — it rejects requests containing personal data with
-HTTP 400 {"error": "HAS_PERSONAL_DATA"}. Real dialogues carry names, phone numbers and
-card fragments, so every outgoing message is masked before send.
+HTTP 400 {"error": "HAS_PERSONAL_DATA"}.
 
-Ported from the colleague's analytics_tool package (llm.py), adapted for this repo:
-- `mask(text)`            — standard pass: emails/urls → tokens, card expiry → xx/xx,
-                            13–19-digit runs → x, CVV/OTP/код words and card phrases →
-                            neutral wording, ALL-CAPS cardholder names → lowercase.
-- `mask(text, strict=True)` — last-resort pass for the automatic retry: additionally
-                            every digit → x and sensitive topic words → euphemisms.
-- `mask_messages(...)`    — applies mask() to user/assistant/tool content. `system` is
-                            NEVER masked: our prompts hold no client data, and the agent
-                            under test must run its production prompt verbatim.
+Per the Sandbox team, the DLP checks exactly two things: bank ACCOUNT numbers and CARD
+numbers. So the two tiers are:
+- `mask(text)`              — standard pass, applied to every request: card/account digit
+                              runs → x; everything else stays VERBATIM (judge fidelity).
+- `mask(text, strict=True)` — the automatic retry when the standard pass is still
+                              rejected: the full battle-tested arsenal (emails, urls,
+                              names in dialogue frames, phones, ИНН/КПП/БИК requisites,
+                              org identities, every digit) — insurance in case the
+                              documented rules are incomplete in practice.
+- `mask_messages(...)`      — applies mask() to user/assistant/tool content. `system` is
+                              NEVER masked: our prompts hold no client data, and the agent
+                              under test must run its production prompt verbatim.
 - `is_personal_data_error(text)` — recognizes the Sandbox DLP rejection in an error body.
 
 Wiring: per-role `sanitize = true` in agents.toml (shipped on for Sandbox roles) makes
 oai.py mask every request and retry once with strict=True on a DLP rejection.
+Origin: ported from the colleague's analytics_tool package (llm.py), then narrowed to the
+confirmed DLP rules; the wide masking lives on in the strict tier.
 
-Deviations from the source: whitespace is collapsed per line but newlines are kept (the
-judged dialogues are multiline CLIENT/OPERATOR transcripts); first names in dialogue
-frames («Вам поможет Анжелика», «Здравствуйте, Никита») are replaced — they were the
-residual DLP trigger the digit masking could not fix; the long-digit threshold is 10+
-(ARN/RRN references are 12 digits); formatted phone numbers are masked.
-
-Debug a stubborn row on the bank machine:  python3 privacy.py < dialogue.txt
+Debug a stubborn row on the bank machine:  python3 privacy.py --row row_5
 prints the standard- and strict-masked variants that would be sent.
 """
 import re
@@ -92,9 +90,24 @@ def _x_digits(match: re.Match) -> str:
     return _ANY_DIGIT.sub("x", match.group(0))
 
 
+# The DLP's documented rules (per the Sandbox team): bank ACCOUNT numbers and CARD numbers,
+# nothing else. Cards are 13–19 digits (also spaced/dashed 4-4-4-4), accounts are 20.
+# No upper bound — a bounded quantifier with \b silently skips longer runs (the 20-digit
+# account bug); any 13+ solid digit run is never an amount the judge needs.
+_CARD_OR_ACCOUNT = re.compile(r"\b\d{13,}\b")
+_CARD_GROUPED = re.compile(r"\b\d{4}(?:[ \-]\d{4}){3}(?:[ \-]\d{1,3})?\b")
+
+
 def mask(text: str, strict: bool = False) -> str:
-    """Mask personal-data triggers; strict=True is the aggressive retry variant."""
+    """Standard pass = exactly the documented DLP rules (card/account numbers), keeping the
+    judged text otherwise VERBATIM. Strict pass (the automatic retry) = the full arsenal —
+    names, phones, requisites, org identities, every digit — in case the rules are
+    incomplete in practice; it is only ever seen by rows the standard pass could not save."""
     safe = str(text)
+    safe = _CARD_GROUPED.sub(_x_digits, safe)
+    safe = _CARD_OR_ACCOUNT.sub(_x_digits, safe)
+    if not strict:
+        return safe
     safe = _EMAIL.sub("email", safe)
     safe = _URL.sub("url", safe)
     safe = _CARDHOLDER.sub(lambda m: m.group(0).lower(), safe)
@@ -106,10 +119,9 @@ def mask(text: str, strict: bool = False) -> str:
     safe = _CARD_EXPIRY.sub("xx/xx", safe)
     safe = _PHONE.sub(_x_digits, safe)
     safe = _LONG_DIGITS.sub(_x_digits, safe)
-    if strict:
-        safe = _ANY_DIGIT.sub("x", safe)
-        for pattern, replacement in _STRICT_MASKS:
-            safe = pattern.sub(replacement, safe)
+    safe = _ANY_DIGIT.sub("x", safe)
+    for pattern, replacement in _STRICT_MASKS:
+        safe = pattern.sub(replacement, safe)
     # collapse runs of spaces/tabs but KEEP newlines — dialogues are multiline transcripts
     return "\n".join(re.sub(r"[ \t]+", " ", line).strip() for line in safe.splitlines()).strip()
 

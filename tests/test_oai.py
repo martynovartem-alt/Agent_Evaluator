@@ -185,8 +185,8 @@ class TestSanitize(unittest.TestCase):
     def test_messages_masked_before_send(self):
         sent = self._sent_bodies([None], _spec(sanitize=True))
         user = sent[0]["messages"][1]["content"]
-        self.assertNotIn("ivan@mail.ru", user)
-        self.assertNotIn("4276380012345678", user)
+        self.assertNotIn("4276380012345678", user)   # card number — the DLP's actual rule
+        self.assertIn("ivan@mail.ru", user)          # NOT in the rules → verbatim on attempt 1
         self.assertEqual(sent[0]["messages"][0]["content"], "судья")  # system verbatim
 
     def test_personal_data_400_triggers_strict_retry(self):
