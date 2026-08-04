@@ -90,34 +90,41 @@ def main() -> int:
           f"(~25 requests, one per 5 s — a couple of minutes)")
 
     print("1) full text, standard mask:", end=" ", flush=True)
-    std = not triggers(spec, privacy.mask(text))
-    print("passes" if std else "TRIGGERS")
+    std_ok = not triggers(spec, privacy.mask(text))
+    print("passes" if std_ok else "TRIGGERS")
     print("2) full text, strict mask:  ", end=" ", flush=True)
-    str_ok = not triggers(spec, privacy.mask(text, strict=True))
-    print("passes" if str_ok else "TRIGGERS")
-    if std:
+    strict_ok = not triggers(spec, privacy.mask(text, strict=True))
+    print("passes" if strict_ok else "TRIGGERS")
+    verdict = (f"standard: {'passes' if std_ok else 'TRIGGERS'} | "
+               f"strict: {'passes' if strict_ok else 'TRIGGERS'}")
+    if std_ok:
         print("the standard mask already passes — rerun eval_fast; if it still fails there, "
               "the trigger is in the judge prompt or panel wiring, not this row")
+        _log(args.row, verdict, "(standard mask passes — nothing to bisect)")
         return 0
-    print("3) full text, no mask:      ", end=" ", flush=True)
-    print("TRIGGERS" if triggers(spec, text) else "passes (?!)")
 
-    lines = [l for l in text.splitlines() if l.strip()]
+    # bisect what is ACTUALLY sent on the failing attempt: the masked text — a raw-text
+    # bisect would just rediscover the names the mask already removes
+    lines = [l for l in privacy.mask(text).splitlines() if l.strip()]
     window = bisect_units(spec, lines, "\n", "lines")
     words = window[0].split() if len(window) == 1 else None
     if words and len(words) > 6:
         words = bisect_units(spec, words, " ", "words")
     fragment = " ".join(words) if words else "\n".join(window)
 
-    print("\n═══ minimal triggering fragment ═══")
+    print("\n═══ minimal triggering fragment (of the MASKED text) ═══")
     print(fragment)
+    _log(args.row, verdict, fragment)
+    print("(appended to runs/dlp_probe.log — send this fragment back to get a pattern for it)")
+    return 0
+
+
+def _log(row: str, verdict: str, fragment: str) -> None:
     from pathlib import Path
     log = Path("runs") / "dlp_probe.log"
     log.parent.mkdir(exist_ok=True)
     with open(log, "a") as f:
-        f.write(f"=== {args.row} ===\n{fragment}\n\n")
-    print(f"(appended to {log} — send this fragment back to get a mask pattern for it)")
-    return 0
+        f.write(f"=== {row} ===\n{verdict}\n{fragment}\n\n")
 
 
 if __name__ == "__main__":
